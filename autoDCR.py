@@ -22,7 +22,7 @@ from acora import AcoraBuilder
 from time import time
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 __author__ = 'Jamie Heather'
 
 
@@ -595,7 +595,7 @@ if __name__ == '__main__':
     # TODO sanity/presence check the input FQ (including a length check - give warning if too short)
     # Determine where to save the results
     analysis_name = input_args['fastq'].split('/')[-1].split('.')[0]
-    out_file_name = analysis_name + 'tsv'
+    out_file_name = analysis_name + '.tsv'
 
     if 'out_path' in input_args:
         if input_args['out_path']:
@@ -634,11 +634,11 @@ if __name__ == '__main__':
 
                 # Bulk write the results out once there's a sufficient chunk (to prevent this getting too big in memory)
                 if len(out_str) % 10000 == 0:
-                    out_file.write('\n'.join(out_str))
-                    out_str = ['\n']
+                    out_file.write('\n'.join(out_str) + '\n')
+                    out_str = []
 
-        # Then write out any leftover calls
-        out_file.write('\n'.join(out_str))
+            # Then write out any leftover calls
+            out_file.write('\n'.join(out_str))
 
         # TODO fix duplicate counts (if desired?)
 
