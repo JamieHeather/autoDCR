@@ -19,7 +19,7 @@ from copy import deepcopy
 from ast import literal_eval
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 __author__ = 'Jamie Heather'
 
 
@@ -38,6 +38,10 @@ def args():
 
     parser.add_argument('-sp', '--species', type=str, required=False, default="human",
                         help='Specify which species TCR repertoire the data consists of. Default = human')
+
+    parser.add_argument('-dd', '--data_dir', type=str, required=False,
+                        help="Optionally specify a path to a directory containing the required germline TCR data \n"
+                             "(i.e. the 'X.fasta', 'X.tags', and 'X.translate' files)")
 
     return parser.parse_args()
 
@@ -218,7 +222,7 @@ if __name__ == '__main__':
 
     # Then write out all the relevant details
     if inferred_dfs:
-        out_nam_base = input_args['in_repertoire'].split('.')[0]
+        out_nam_base = input_args['in_repertoire'].split('/')[-1].split('.')[0]
         supporting_df = pd.concat(inferred_dfs, axis=0)
         supporting_df.to_csv(out_nam_base + '_sourcedata.tsv', sep='\t', index=False)
 
