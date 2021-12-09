@@ -19,7 +19,7 @@ import autoDCR as dcr
 from time import strftime, localtime
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 __author__ = 'Jamie Heather'
 
 
@@ -325,7 +325,6 @@ if __name__ == '__main__':
                                    "Manually verify. "
                     manually_verify = True
 
-        log_str += r
         positions[j] = int((nt_start + 1 - modifier) / 3)
         motifs[j] = translation[positions[j]]
 

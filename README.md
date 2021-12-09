@@ -1,6 +1,6 @@
 # autoDCR
 
-### v0.1.0
+### v0.2.0
 #### Jamie Heather, MGH, 2021
 
 ### Introduction
@@ -12,9 +12,9 @@ The first big difference between the scripts is what tags are looked for. `Decom
 This sacrifices the speed of `Decombinator`, but allows for greater resolution of TCR genes and alleles, while using and retaining sequence information from a greater portion of the input TCR read. This tag approach also makes the automation of tag generation much simpler, making it much easier to either update `autoDCR` when new TCR alleles are discovered, or even to apply it to novel species for which TCR information has become available.
 
   * [Original `Decombinator` paper DOI: 10.1093/bioinformatics/btt004](https://doi.org/10.1093/bioinformatics/btt004)
-  * [Recent V4 update paper DOI: 10.1093/bioinformatics/btaa758](https://doi.org/10.1093/bioinformatics/btaa758)
+  * [V4 update paper DOI: 10.1093/bioinformatics/btaa758](https://doi.org/10.1093/bioinformatics/btaa758)
 
-**Note** that `autoDCR` is in development, and is not a full suite of functions as is `Decombinator`. Most especially it currently lacks the UMI based error-correction functionality of `Decombinator`.
+**Note** that `autoDCR` is in development, and does not offer as full a suite of functions as does `Decombinator`. Most especially it currently lacks the UMI based error-correction functionality of `Decombinator`.
 
 ### Generating `autoDCR` tag files
 
@@ -55,8 +55,7 @@ At its simplest, `autoDCR` can be run simply by pointing it to a particular FAST
 python autoDCR.py -fq FILE.fastq
 ```
 
-`autoDCR` then produces a tab separated file detailing the rearrangements it detected in the [AIRR Community standard schema](https://docs.airr-community.org) as proposed in [Vander Heiden *et al.*, 2018](https://doi.org/10.3389/fimmu.2018.02206), s
-                   'v_jump', 'j_jump' # This is the non-standard modificationupplemented with some additional custom fields. 
+`autoDCR` then produces a tab separated file detailing the rearrangements it detected in the [AIRR Community standard schema](https://docs.airr-community.org) as proposed in [Vander Heiden *et al.*, 2018](https://doi.org/10.3389/fimmu.2018.02206), supplemented with some additional custom fields. 
 
 There are a few optional command line arguments that users can supply to override the default parameters:
 
@@ -69,3 +68,28 @@ There are a few optional command line arguments that users can supply to overrid
 * `-dl / --deletion_limit`: upper limit of deletions to allow in a functional recombination. Default = 30.
 * `-dt / --dont_tranlate`: toggle off automatic translation and CDR3 detection.
 * `-dz / --dont_gzip`: toggle off automatic gzip compression of produced results.
+* `-jv / --jump_values`: toggle on outputting the V/J 'jump' values (positions of the outermost V/J tag matches). Defaults to on when using the `-ad` option.
+* `-ad / --allele_discovery`: toggle on a mode that permits rudimentary downstream novel V/J allele inference (see below).
+
+#### Novel allele inference with `inferTCR`
+
+In its determination of what alleles are used in a given rearrangement, `autoDCR` categorises exactly which tag sequences derived from which genes are present along a read. This makes it possible to perform rudimentary allele detection by looking for TCRs within an individual that have a consistent break in a run of tag matches, as an undescribed single nucleotide variant will result in two contiguous/overlapping tags not matching. Users can run `autoDCR` with the `-ad` flag set, which will add additional fields to the output data categorising such mismatches.
+
+Note that feature is highly experimental, requiring high-quality TCR sequencing reads thatodot span the entirety of the variable domain, which have been produced from a single donor's T cells. It also should only be run using tags that have been generated with default parameters in `generate-tag-files` (20 nt length, overlapping 10 nt). Note that it will also only infer novel alleles that are relatively commonly used in the donor being analysed, and those with distinguishing variant sites that are a) not present in the first/last 10 nucleotides of a gene and b) contained within a 10 bp window. 
+
+```bash
+# Run autoDCR with allele discovery mode on
+python3 autoDCR.py -fq TCRs.fasta -ad
+
+# Then run inferTCR on the output file produced
+python3 inferTCR.py -in TCRs_infer-alleles.tsv.gz 
+```
+
+This then produces a few files:
+
+* *_infer-alleles_alleles.fasta  
+  * FASTA sequences of the potential novel alleles detects in the input file
+* *_infer-alleles_sourcedata.tsv
+  * The actual raw rows from the *_infer-alleles.tsv.gz file produced by `-ad` mode `autoDCR`
+* *_infer-alleles_summary.tsv
+  * A summary file tabulating the properties of the alleles which related to their being inferred as potentially novel 

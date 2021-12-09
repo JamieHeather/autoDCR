@@ -1,7 +1,7 @@
-Running generate-tag-files.py version:	0.1.0
-Run on:	 2021-08-21 12:32:28.870558
+Running generate-tag-files.py version:	0.1.1
+Run on:	 2021-12-08 23:40:53.281540
 Input FASTA file:	human.fasta
-Input FASTA last modified:	2021-08-14 17:54:56
+Input FASTA last modified:	2021-12-08 23:38:21
 Sliding window length used:	20
 -----	-----
 Number genes covered:	396
@@ -52,90 +52,4 @@ TRDV2*03:	 Has multiple potential conserved C residues in its 3'. Taking positio
 -----	-----
 Number J genes covered:	87
 Flagged J genes below:	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 TRBJ2-2P*01:	Non-standard position for conserved CDR3 junction ending motif.
-
-
-
-
-
-

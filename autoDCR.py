@@ -22,7 +22,7 @@ from acora import AcoraBuilder
 from time import time
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 __author__ = 'Jamie Heather'
 
 
@@ -61,6 +61,15 @@ def args():
 
     parser.add_argument('-dl', '--deletion_limit', type=int, required=False, default=30,
                         help='Upper limit of allowable deletions for each of V/J in a recombination. Default = 30.')
+
+    parser.add_argument('-jv', '--jump_values', action='store_true', required=False,
+                        help="Optionally output the V and J 'jump' values, which record the position of the outermost "
+                             "edges of the detected TCR rearrangements.")
+
+    parser.add_argument('-ad', '--allele_discovery', action='store_true', required=False,
+                        help='Run autoDCR in a mode that permits downstream attempts to discover novel TCR V/J alleles.'
+                             '\nNote this is a highly experimental feature, and requires that tags have been generated '
+                             'with default parameters (20 nt length, overlapping 10 nt). See README')
 
     parser.add_argument('-dt', '--dont_translate', action='store_true', required=False,
                         help='Stop the automatic translation of TCRs.')
@@ -103,17 +112,17 @@ def readfq(fastx_file):
                 break
 
         else:  # this is a fastq record
-            seq, leng, seqs = ''.join(seqs), 0, []
+            sequence, leng, seqs = ''.join(seqs), 0, []
             for l in fastx_file:  # read the quality
                 seqs.append(l[:-1])
                 leng += len(l) - 1
-                if leng >= len(seq):  # have read enough quality
+                if leng >= len(sequence):  # have read enough quality
                     last = None
-                    yield name, seq, ''.join(seqs)  # yield a fastq record
+                    yield name, sequence, ''.join(seqs)  # yield a fastq record
                     break
 
             if last:  # reach EOF before reading enough quality
-                yield name, seq, None  # yield a fasta record instead
+                yield name, sequence, None  # yield a fasta record instead
                 break
 
 
@@ -182,16 +191,16 @@ def import_tcr_info(input_arguments):
                 input_arguments['data_dir'] = d_dir
 
     # Get full gene sequences
-    in_file_path = d_dir + input_args['species'] + '.fasta'
+    in_file_path = d_dir + input_arguments['species'] + '.fasta'
     if not os.path.exists(in_file_path):
         raise IOError("Cannot find input TCR FASTA file " + in_file_path + ".")
 
     with open(in_file_path, 'r') as in_file:
-        for read_id, seq, qual in readfq(in_file):
-            globals()["genes"][get_gene(read_id)] = seq.upper()
+        for fasta_header, fasta_seq, quality in readfq(in_file):
+            globals()["genes"][get_gene(fasta_header)] = fasta_seq.upper()
 
     # And also the tag information...
-    in_file_path = d_dir + input_args['species'] + '.tags'
+    in_file_path = d_dir + input_arguments['species'] + '.tags'
     if not os.path.exists(in_file_path):
         raise IOError("Cannot find input TCR TAG file " + in_file_path + ".")
 
@@ -206,6 +215,14 @@ def import_tcr_info(input_arguments):
 
     # ... and built into Aho-Corasick tries, which will be used to search the data
     globals()["trie"] = build_trie(list(globals()["tag_genes"].keys()))
+
+    # Also establish the global field of whether the allele discovery mode is enabled
+    global discover
+    if input_arguments['allele_discovery']:
+        discover = True
+    else:
+        discover = False
+
     # TODO add option to read in a pre-made trie?
     return input_arguments
 
@@ -228,7 +245,7 @@ def import_translate_info(input_arguments):
             d_dir = input_arguments['data_dir']
 
     # Get data
-    in_file_path = d_dir + input_args['species'] + '.translate'
+    in_file_path = d_dir + input_arguments['species'] + '.translate'
     if not os.path.exists(in_file_path):
         raise IOError("Cannot find input TCR translation file " + in_file_path + ".")
 
@@ -389,11 +406,74 @@ def find_tag_hits(sequence):
                     pass
                     # TODO if desired not-rearranged-but-TCR-containing reads could be output here
 
+            # Check whether allele discovery mode has been established
+            if 'discover' in globals():
+                if discover:
+                    # Only passrd through tags that correspond to the called gene
+                    gene_specific_tag_order = [x for x in tag_order if out_dict[gene_type.lower() + '_call']
+                                               in tag_genes[x[0]].split(',')]
+
+                    # Can only perform allele discovery sampling if there's a gene call/remaining tags
+                    if len(gene_specific_tag_order) > 0:
+                        out_dict[gene_type.lower() + '_mismatches'] = noncontiguous_tag_check(
+                            sequence, gene_specific_tag_order, 10, out_dict[gene_type.lower() + '_call'])
+
             out_dict[gene_type.lower() + '_tag_seq'] = match[0]
             out_dict[gene_type.lower() + '_tag_position'] = match[1]
 
+    # If both a V and a J gene have been called, return the output
     if found == 2:
         return out_dict
+
+
+def noncontiguous_tag_check(sequence, tag_hits, win_len, gene):
+    """
+    Used in trying to identify potential novel alleles, based on a break in consecutive tag hits
+    :param sequence: read being decombined
+    :param tag_hits: the list of V/J tag hits produced by find_tag_hits
+    :param win_len: length of expected window between adjacent tags
+    :param gene: gene used
+    :return: dict detailing the detected noncontiguous mismatch, i.e. the tags before/after and sequence in between
+    """
+
+    # Account for fact J gene tag orders are running in descending order
+    if gene[3] == 'J':
+        tag_hits = tag_hits[::-1]
+
+    # Then simply find 'missing' tags, based on what tag positions we'd expect to see, given a certain tag window length
+    tag_positions = [x[1] for x in tag_hits]
+
+    non_contig = [x for x in range(min(tag_positions), max(tag_positions), win_len) if x not in tag_positions]
+
+    # TODO add check here that all tags map to the same gene?
+
+    if not non_contig:
+        return ''
+    else:
+        # Find the substring that's not covered by the tags, throwing it out if the tags before/after aren't in sync
+        try:
+            # Find the tags and positions in the read
+            tag1_seq, tag1_index = [x for x in tag_hits if x[1] == non_contig[0] - win_len][0]
+            tag2_seq, tag2_index = [x for x in tag_hits if x[1] == non_contig[-1] + win_len][0]
+
+            # And the corresponding parts in the germline gene
+            tag1_gl_index = genes[gene.split(',')[0]].index(tag1_seq)
+            tag2_gl_index = genes[gene.split(',')[0]].index(tag2_seq)
+
+        except Exception:
+            return ''
+
+        # Otherwise report back all the relevant bracketing and intervening sequence/tag information
+        mismatch_dict = {
+            'tag1_index': tag1_index,
+            'tag2_index': tag2_index,
+            'tag1_seq': tag1_seq,
+            'tag2_seq': tag2_seq,
+            'tag1_gl_index': tag1_gl_index,
+            'tag2_gl_index': tag2_gl_index,
+            'intervening': sequence[tag1_index + len(tag1_seq):tag2_index]
+        }
+        return mismatch_dict
 
 
 def translate(nt_seq):
@@ -408,7 +488,7 @@ def translate(nt_seq):
         if len(codon) == 3:
             try:
                 aa_seq += codons[codon]
-            except:
+            except Exception:
                 raise IOError("Cannot translate codon: " + codon)
 
     return aa_seq
@@ -481,8 +561,7 @@ def tcr_search(tcr_read, tcr_qual, input_arguments, headers):
         elif not search_f and search_r:
             search = search_r
             search['rev_comp'] = 'T'
-        # elif search_f and search_r:
-            # TODO else raise error or output if search_f AND search_R somehow?
+        # TODO potentially could add 'elif search_f and search_r' here: unlikely to have data with bidirectional TCRs?
 
     else:
         raise IOError("Incorrect orientation argument provided: " + input_arguments['orientation'] + "\n"
@@ -574,20 +653,29 @@ def find_cdr3(tcr):
     return tcr
 
 
+out_headers = ['sequence_id', 'v_call', 'd_call', 'j_call', 'junction_aa', 'duplicate_count', 'sequence',
+               'junction', 'rev_comp', 'productive', 'sequence_aa',
+               'inferred_full_nt', 'inferred_full_aa', 'non_productive_junction_aa',
+               'vj_in_frame', 'stop_codon', 'conserved_c', 'conserved_f',
+               'inter_tag_seq', 'inter_tag_qual', 'umi_seq', 'umi_qual',
+               'sequence_alignment', 'germline_alignment', 'v_cigar', 'd_cigar', 'j_cigar']
+
+
 if __name__ == '__main__':
 
+    # Determine the requested input/output parameters
     input_args = vars(args())
-
     input_args = import_tcr_info(input_args)
+
     if not input_args['dont_translate']:
         import_translate_info(input_args)
 
-    out_headers = ['sequence_id', 'v_call', 'd_call', 'j_call', 'junction_aa', 'duplicate_count', 'sequence',
-                   'junction', 'rev_comp', 'productive', 'sequence_aa',
-                   'inferred_full_nt', 'inferred_full_aa', 'non_productive_junction_aa',
-                   'vj_in_frame', 'stop_codon', 'conserved_c', 'conserved_f',
-                   'inter_tag_seq', 'inter_tag_qual', 'umi_seq', 'umi_qual',
-                   'sequence_alignment', 'germline_alignment', 'v_cigar', 'd_cigar', 'j_cigar']
+    if discover:
+        out_headers += ['v_mismatches', 'j_mismatches']
+        input_args['jump_values'] = True
+
+    if input_args['jump_values']:
+        out_headers += ['v_jump', 'j_jump']
 
     counts = coll.Counter()
     start = time()
@@ -595,6 +683,8 @@ if __name__ == '__main__':
     # TODO sanity/presence check the input FQ (including a length check - give warning if too short)
     # Determine where to save the results
     analysis_name = input_args['fastq'].split('/')[-1].split('.')[0]
+    if discover:
+        analysis_name += '_infer-alleles'
     out_file_name = analysis_name + '.tsv'
 
     if 'out_path' in input_args:
@@ -624,27 +714,37 @@ if __name__ == '__main__':
             read, real_qual, bc, bc_qual = sort_read_bits(seq, qual, input_args)
             tcr_check = tcr_search(read, real_qual, input_args, out_headers)
             if tcr_check:
+
                 if input_args['barcoding']:
                     tcr_check['umi_seq'] = bc
                     tcr_check['umi_qual'] = bc_qual
 
                 counts['rearrangements'] += 1
                 tcr_check['sequence_id'] = read_id
-                out_str.append('\t'.join([str(tcr_check[x]) for x in out_headers]))
+
+                line_out = '\t'.join([str(tcr_check[x]) for x in out_headers])
+
+                if discover:
+                    if tcr_check['v_mismatches'] or tcr_check['j_mismatches']:
+                        counts['mismatched_germlines'] += 1
+
+                out_str.append(line_out)
 
                 # Bulk write the results out once there's a sufficient chunk (to prevent this getting too big in memory)
                 if len(out_str) % 10000 == 0:
                     out_file.write('\n'.join(out_str) + '\n')
                     out_str = []
 
-            # Then write out any leftover calls
-            out_file.write('\n'.join(out_str))
-
+        # Then write out any leftover calls
+        out_file.write('\n'.join(out_str))
         # TODO fix duplicate counts (if desired?)
 
     end = time()
     time_taken = end - start
     print("Took", str(round(time_taken, 2)), "seconds")
     print("Found", str(counts['rearrangements']), "rearranged TCRs in", str(counts['reads']), "reads")
+    if discover:
+        print("Of these,", str(counts['mismatched_germlines']), "showed discontinuous tag matches "
+              "and were kept aside for inference of potential new alleles.")
 
     # TODO sort summary output (maybe into YAML?)
