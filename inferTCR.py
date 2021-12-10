@@ -19,7 +19,7 @@ from copy import deepcopy
 from ast import literal_eval
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 __author__ = 'Jamie Heather'
 
 
@@ -196,10 +196,10 @@ if __name__ == '__main__':
                 changes = []
                 seq_in_progress = list(dcr.genes[base_gene])
                 for pos in positions:
-                    edit_pos = unmatched_start + pos
+                    edit_pos = unmatched_start + pos + 1  # Need to add one to offset from Python indexing
                     changes.append(intervening_gl[pos] + str(edit_pos) + intervening[pos])
-                    if seq_in_progress[edit_pos] == intervening_gl[pos]:
-                        seq_in_progress[edit_pos] = intervening[pos]
+                    if seq_in_progress[edit_pos - 1] == intervening_gl[pos]:
+                        seq_in_progress[edit_pos - 1] = intervening[pos]
                 pot_allele = '_'.join([base_gene] + changes)
                 seq_in_progress = ''.join(seq_in_progress)
                 inferred_alleles[pot_allele] = seq_in_progress
