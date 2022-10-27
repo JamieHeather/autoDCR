@@ -22,7 +22,7 @@ from acora import AcoraBuilder
 from time import time
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 __author__ = 'Jamie Heather'
 
 
@@ -256,9 +256,10 @@ def import_translate_info(input_arguments):
             globals()["trans_res"][bits[0]] = bits[2]
 
 
-def get_deletions(results_dict):
+def get_deletions(results_dict, input_arguments):
     """
     :param results_dict: The dictionary containing all of the TCR details discovered so far
+    :param input_arguments: The argparse input arguments
     :return: the same results_dict, with additional information relating to the deletions discovered in the germline V/J
     """
 
@@ -301,7 +302,7 @@ def get_deletions(results_dict):
                 position[gene] += increment[gene]
                 deletions += 1
 
-        if matched or deletions < input_args['deletion_limit']:
+        if matched or deletions < input_arguments['deletion_limit']:
             results_dict[gene.lower() + '_deletions'] = deletions
             results_dict[gene.lower() + '_deletion_found'] = True
         else:
@@ -320,11 +321,12 @@ def get_deletions(results_dict):
     return results_dict
 
 
-def dcr(sequence, quality):
+def dcr(sequence, quality, passed_input_arguments):
     """
     Core wrapper function that performs the actual decombining
     :param sequence: DNA string
     :param quality: Corresponding quality scores (if available - padded with spaces if not)
+    :param passed_input_arguments: passing the input arguments dict along for get_deletions
     :return: results dictionary containing the details of any discovered recombined TCR
     """
 
@@ -336,7 +338,7 @@ def dcr(sequence, quality):
         if quality:
             check['inter_tag_qual'] = quality[check['v_tag_position']:check['j_tag_position'] + 20]
 
-        get_deletions(check)
+        get_deletions(check, passed_input_arguments)
 
     return check
 
@@ -541,19 +543,19 @@ def tcr_search(tcr_read, tcr_qual, input_arguments, headers):
 
     search = ''
     if input_arguments['orientation'] == 'forward' or input_arguments['orientation'].lower() == 'f':
-        search = dcr(tcr_read.upper(), tcr_qual)
+        search = dcr(tcr_read.upper(), tcr_qual, input_arguments)
         if search:
             search['rev_comp'] = 'F'
 
     elif input_arguments['orientation'] == 'reverse' or input_arguments['orientation'].lower() == 'r':
-        search = dcr(rev_comp(tcr_read.upper()), tcr_qual[::-1])
+        search = dcr(rev_comp(tcr_read.upper()), tcr_qual[::-1], input_arguments)
         if search:
             search['rev_comp'] = 'T'
 
     elif input_arguments['orientation'] == 'both' or input_arguments['orientation'].lower() == 'b':
         # If searching in both orientations, need to open to the possibility of finding TCRs in both
-        search_f = dcr(tcr_read.upper(), tcr_qual)
-        search_r = dcr(rev_comp(tcr_read.upper()), tcr_qual[::-1])
+        search_f = dcr(tcr_read.upper(), tcr_qual, input_arguments)
+        search_r = dcr(rev_comp(tcr_read.upper()), tcr_qual[::-1], input_arguments)
 
         if search_f and not search_r:
             search = search_f
