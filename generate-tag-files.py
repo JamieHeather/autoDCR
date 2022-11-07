@@ -19,7 +19,7 @@ import autoDCR as dcr
 from time import strftime, localtime
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 __author__ = 'Jamie Heather'
 
 
@@ -193,7 +193,7 @@ if __name__ == '__main__':
     with open(nam + '.tags', 'w') as out_file:
         out_file.write('\n'.join(out_str))
 
-    all_vs = [x for x in all_genes if 'V' in x]
+    all_vs = [x for x in all_genes if 'V' in x.split('*')[0]]
     all_vs.sort()
 
     log_str += lb + 'Number V genes covered:\t' + str(len(all_vs)) + r + 'Flagged V genes below:\t' + r
@@ -265,6 +265,7 @@ if __name__ == '__main__':
                     cs = [x for x, residue in enumerate(translation) if 'C' in residue]
 
                     # Only look in first two, as I'm yet to find a functional V with > 2 Cs in its 3'
+                    picked = False
                     for c in cs[-2:]:
                         # Then take the 5' most of those two that matches
                         if translation[c-1] in ['L', 'Y', 'F']:
@@ -289,7 +290,7 @@ if __name__ == '__main__':
         # (e.g. TRBV7-3*02/03, which has R instead of conserved C)
 
     # Then try to find conserved J gene motifs
-    all_js = [x for x in all_genes if 'J' in x]
+    all_js = [x for x in all_genes if 'J' in x.split('*')[0]]
     all_js.sort()
     poss_motifs = ['FG.G', 'WG.G', 'CG.G', 'F..G', 'FG..', 'LG.G']
 
@@ -340,6 +341,8 @@ if __name__ == '__main__':
     # Finally output the log file, containing the details of this specific run
     with open(nam + '.log', 'w') as out_file:
         out_file.write(log_str)
+
+        # TODO fix novel allele details not being present in the log file
 
     if manually_verify:
         raise ValueError("Warning: V and/or J genes with irregular CDR3 junction ending motifs discovered, from which "
