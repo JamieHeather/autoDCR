@@ -22,7 +22,7 @@ from acora import AcoraBuilder
 from time import time
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 __author__ = 'Jamie Heather'
 
 
@@ -357,7 +357,7 @@ def find_tag_hits(sequence):
 
     found = 0
     for gene_type in ['V', 'J']:
-        specific_check = [x for x in check if gene_type in tag_genes[x[0]]]
+        specific_check = [x for x in check if gene_type in tag_genes[x[0]].split('*')[0]]
 
         if specific_check:
             found += 1
