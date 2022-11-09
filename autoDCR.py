@@ -22,7 +22,7 @@ from acora import AcoraBuilder
 from time import time
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.2.2'
+__version__ = '0.2.3'
 __author__ = 'Jamie Heather'
 
 
@@ -645,9 +645,38 @@ def find_cdr3(tcr):
             tcr['productive'] = 'F'
 
         if tcr['productive'] == 'F':
+
             if tcr['junction_aa']:
-                tcr['non_productive_junction_aa'] = tcr['junction_aa']
+
+                # Additional check to try to salvage recovery of CDR3s in frame-shifted receptors
+                # Works off scanning from conserved F (if present) and scanning N-wards for the next C
+                if tcr['stop_codon'] == 'T' and tcr['conserved_f'] == 'F':
+
+                    potential_frames = []
+                    for frame in range(3):
+                        potential_translation = translate(tcr['inferred_full_nt'][frame:])
+                        if potential_translation[trans_pos[tcr['j_call']]] == trans_res[translate_j]:
+                            potential_frames.append(frame)
+
+                    # If there's a single frame in which there's a conserved F residue at the appropriate location...
+                    if len(potential_frames) == 1:
+                        # ... look upstream until it finds a C (within a typical distance)
+                        potential_translation = translate(tcr['inferred_full_nt'][potential_frames[0]:])
+                        j_f_pos = trans_pos[tcr['j_call']]
+                        for i in range(8, 21):
+                            potential_junction_aa = potential_translation[j_f_pos - i:j_f_pos + 1]
+                            if potential_junction_aa[0] == trans_res[translate_v]:
+                                tcr['non_productive_junction_aa'] = potential_junction_aa
+                                tcr['inferred_full_aa'] += ',' + translate(
+                                    tcr['inferred_full_nt'][potential_frames[0]:])
+                                tcr['conserved_f'] = 'T'
+                                break
+
+                if 'non_productive_junction_aa' not in tcr:
+                    tcr['non_productive_junction_aa'] = tcr['junction_aa']
+
                 tcr['junction_aa'] = ''
+
         else:
             tcr['junction'] = tcr['inferred_full_nt'][
                               trans_pos[translate_v] * 3:(trans_pos[translate_j] * 3) + 2]

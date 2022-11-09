@@ -1,7 +1,7 @@
 # autoDCR
 
-### v0.2.0
-#### Jamie Heather, MGH, 2021
+### v0.2.3
+#### Jamie Heather, MGH, 2022
 
 ### Introduction
 
@@ -70,6 +70,10 @@ There are a few optional command line arguments that users can supply to overrid
 * `-dz / --dont_gzip`: toggle off automatic gzip compression of produced results.
 * `-jv / --jump_values`: toggle on outputting the V/J 'jump' values (positions of the outermost V/J tag matches). Defaults to on when using the `-ad` option.
 * `-ad / --allele_discovery`: toggle on a mode that permits rudimentary downstream novel V/J allele inference (see below).
+
+#### Note on non-productive rearrangements
+
+TCRs are deemed to be 'non-productive' if they contain stop codons, don't have in-frame variable and constant domains, and/or lack certain conserved motifs. While these rearrangements might be deemed less interesting, they are useful for some applications, and so `autoDCR` will still try to determine their CDR3 junction. Ordinarily `autoDCR` determines correct frames and conserved motifs using both the V and J genes, but in cases where there are detected stop codons it will only do in reference to the conserved J region FGXG motif. If it finds one, it will then just look for the nearest upstream V region C residue. In these circumstances it will report two comma-separated full inferred translations: one assuming the V gene is in-frame, the other assuming the J gene is.
 
 #### Novel allele inference with `inferTCR`
 
