@@ -7,9 +7,9 @@
 
 `autoDCR` (short for **auto**matic **D**e**c**ombinato**r**) is a python script to perform T cell receptor (TCR) gene annotation of DNA sequencing reads. This is inspired by and in part built upon the core functionality of [Decombinator](https://github.com/innate2adaptive/Decombinator), the TCR analysis software developed by the Chain lab at UCL (in part by me). It uses a similar conceptual framework of using fast Aho-Corasick tries to search for the presence of 'tag' sequences in DNA reads, and use these to identify V and J TCR genes. 
 
-The first big difference between the scripts is what tags are looked for. `Decombinator` aims to find single CDR3-proximal tags (i.e. in the 3' of V genes or 5' of J genes) which aim to identify individual TCR genes - ideally covering all of the alleles of that gene - producing an extremely concise trie which can very rapidly search large datasets. Instead, `autoDCR` generates overlapping tags across the entirety of all alleles for all genes for both TRA and TRB, producing a much larger trie. Tags will then potentially cover multiple genes, but genes are calls based on the intersection between genes/alleles covered in all tags which they matched. 
+The first big difference between the scripts is what tags are looked for. `Decombinator` aims to find single CDR3-proximal tags (i.e. in the 3' of V genes or 5' of J genes) which aim to identify individual TCR genes - ideally covering all of the alleles of that gene - producing an extremely concise trie which can very rapidly search large datasets. Instead, `autoDCR` generates overlapping tags across the entirety of all alleles for all genes for both TRA and TRB, producing a much larger trie. Tags will then potentially cover multiple genes, but genes are called based on the intersection between genes/alleles covered in all tags which they matched. 
 
-This sacrifices the speed of `Decombinator`, but allows for greater resolution of TCR genes and alleles, while using and retaining sequence information from a greater portion of the input TCR read. This tag approach also makes the automation of tag generation much simpler, making it much easier to either update `autoDCR` when new TCR alleles are discovered, or even to apply it to novel species for which TCR information has become available.
+This sacrifices the speed of `Decombinator`, but allows for greater resolution of TCR genes and alleles, while using and retaining sequence information from a greater portion of the input TCR read. This tag approach also makes the automation of tag generation much simpler, making it much easier to either update `autoDCR` when new TCR alleles are discovered, or even to apply it to novel species for which TCR information has recently become available.
 
   * [Original `Decombinator` paper DOI: 10.1093/bioinformatics/btt004](https://doi.org/10.1093/bioinformatics/btt004)
   * [V4 update paper DOI: 10.1093/bioinformatics/btaa758](https://doi.org/10.1093/bioinformatics/btaa758)
@@ -23,7 +23,7 @@ In order to use `autoDCR` you must first make the .tag and .translate files for 
 * Download all V and J genes for your given species from IMGT-GENE/DB.
     * Note that currently `autoDCR` is designed with TRA and TRB genes, and it's recommended that if you plan to regularly look for both you just generate files with both TRA and TRB combined. 
       * However if you know you're only interested in one specific locus you can download just the genes for that.
-      * Note that in humans all TRDV genes can be found recombined with TRAJ (even those genes not necesessarily labelled as TRAVx/DVx), so I recommend including all TRDV genes for alpha/beta recombination searches.
+      * Note that in humans all TRDV genes can be found recombined with TRAJ (even those genes not necessarily labelled as TRAVx/DVx), so I recommend including all TRDV genes for alpha/beta recombination searches.
     * Save as a FASTA file, retaining the '|' delimited header information.
     * Try to use a one word species name (without any special characters, including '.' characters) to name this file.
     * E.g. 'human.fasta' or 'mouse.fasta'.
@@ -42,7 +42,7 @@ python generate-tag-files.py -in human.fasta
     * amino acid found at the conserved residue position
 * Note that in both file types, positions are counted forwards from the 5' of the V or backwards from the 3' end of the J.
   * Not only is it conceptually easier to count backwards for the Js (due to the start of the J being obscured by V(D)J recombination), but the conserved FGXG motifs tend to fall at specific positions relative to the end of the Js, at least in functional genes, presumably due to evolutionary constraints. 
-* If this this is the first time generating these files for a particular species, be sure to check the .log file.
+* If this is the first time generating these files for a particular species, be sure to check the .log file.
     * Be particularly on the lookout for genes that are flagged with 'Manually verify': these are genes for which the automatic conserved motif detection was unsuccessful.
 
 An example of this using the human TRA/TRB loci (downloaded from IMGT/GENE-DB on 2021-08-14) has been included in this repo.
@@ -79,7 +79,7 @@ TCRs are deemed to be 'non-productive' if they contain stop codons, don't have i
 
 In its determination of what alleles are used in a given rearrangement, `autoDCR` categorises exactly which tag sequences derived from which genes are present along a read. This makes it possible to perform rudimentary allele detection by looking for TCRs within an individual that have a consistent break in a run of tag matches, as an undescribed single nucleotide variant will result in two contiguous/overlapping tags not matching. Users can run `autoDCR` with the `-ad` flag set, which will add additional fields to the output data categorising such mismatches.
 
-Note that feature is highly experimental, requiring high-quality TCR sequencing reads thatodot span the entirety of the variable domain, which have been produced from a single donor's T cells. It also should only be run using tags that have been generated with default parameters in `generate-tag-files` (20 nt length, overlapping 10 nt). Note that it will also only infer novel alleles that are relatively commonly used in the donor being analysed, and those with distinguishing variant sites that are a) not present in the first/last 10 nucleotides of a gene and b) contained within a 10 bp window. 
+Note that feature is highly experimental, requiring high-quality TCR sequencing reads that span the entirety of the variable domain, which have been produced from a single donor's T cells. It also should only be run using tags that have been generated with default parameters in `generate-tag-files` (20 nt length, overlapping 10 nt). Note that it will also only infer novel alleles that are relatively commonly used in the donor being analysed, and those with distinguishing variant sites that are a) not present in the first/last 10 nucleotides of a gene and b) contained within a 10 bp window. 
 
 ```bash
 # Run autoDCR with allele discovery mode on

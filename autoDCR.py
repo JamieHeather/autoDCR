@@ -22,7 +22,7 @@ from acora import AcoraBuilder
 from time import time
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.2.3'
+__version__ = '0.2.6'
 __author__ = 'Jamie Heather'
 
 
@@ -70,6 +70,13 @@ def args():
                         help='Run autoDCR in a mode that permits downstream attempts to discover novel TCR V/J alleles.'
                              '\nNote this is a highly experimental feature, and requires that tags have been generated '
                              'with default parameters (20 nt length, overlapping 10 nt). See README')
+
+    parser.add_argument('-it', '--internal_translation', action='store_true', required=False,
+                        help='Generate inferred full-length sequences off the most internal (CDR3-proximal) tags, '
+                             'rather than the farthest (most distal) ones as per usual.'
+                             '\nNote this is a highly experimental feature, but can be useful for applications where '
+                             'users can reasonably expect variations indels/unexpected splicing in V/J genes.')
+
 
     parser.add_argument('-dt', '--dont_translate', action='store_true', required=False,
                         help='Stop the automatic translation of TCRs.')
@@ -222,6 +229,12 @@ def import_tcr_info(input_arguments):
         discover = True
     else:
         discover = False
+
+    global internal
+    if input_arguments['internal_translation']:
+        internal = True
+    else:
+        internal = False
 
     # TODO add option to read in a pre-made trie?
     return input_arguments
@@ -379,12 +392,19 @@ def find_tag_hits(sequence):
             out_dict[gene_type.lower() + '_number_tags_matches'] = i
             out_dict[gene_type.lower() + '_number_tags_total'] = len(specific_check)
 
-            # Then go through the matched tag and find the farthest hit that uses the tag combination found
+            # Then go through the matched tag and find the relevant hit that uses the tag combination found
             if gene_type == 'V':
-                tag_order = [x for x in specific_check]
+                if not internal:
+                    tag_order = [x for x in specific_check]
+                else:
+                    tag_order = [x for x in specific_check][::-1]
+            elif gene_type == 'J':
+                if not internal:
+                    tag_order = [x for x in specific_check][::-1]
+                else:
+                    tag_order = [x for x in specific_check]
             else:
-                # Must be J
-                tag_order = [x for x in specific_check][::-1]
+                raise ValueError("Unexpected gene type during translation. ")
 
             # Some genes are uniquely identifiable only through their unique appearance in the intersection of many tags
             # Need to find the most-distal tag that covers that gene/all of those genes
@@ -397,6 +417,7 @@ def find_tag_hits(sequence):
                 if all(g in tag_genes_sep for g in call_bits):
 
                     out_dict[gene_type.lower() + '_jump'] = genes[hits[0]].index(match[0])
+
                     # Need to add on the J tag length to make the inter-tag sequence include the J tag
                     if gene_type == 'J':
                         out_dict[gene_type.lower() + '_jump'] += len(match[0])
@@ -644,6 +665,10 @@ def find_cdr3(tcr):
         else:
             tcr['productive'] = 'F'
 
+        # Cryptic splices in leader processing can result in a variety of translation issues, let's catch those
+        if tcr['inferred_full_aa'] and not tcr['junction_aa']:
+            tcr = attempt_salvage_irregular_cdr3s(tcr, translate_v, translate_j)
+
         if tcr['productive'] == 'F':
 
             if tcr['junction_aa']:
@@ -651,30 +676,10 @@ def find_cdr3(tcr):
                 # Additional check to try to salvage recovery of CDR3s in frame-shifted receptors
                 # Works off scanning from conserved F (if present) and scanning N-wards for the next C
                 if tcr['stop_codon'] == 'T' and tcr['conserved_f'] == 'F':
-
-                    potential_frames = []
-                    for frame in range(3):
-                        potential_translation = translate(tcr['inferred_full_nt'][frame:])
-                        if potential_translation[trans_pos[tcr['j_call']]] == trans_res[translate_j]:
-                            potential_frames.append(frame)
-
-                    # If there's a single frame in which there's a conserved F residue at the appropriate location...
-                    if len(potential_frames) == 1:
-                        # ... look upstream until it finds a C (within a typical distance)
-                        potential_translation = translate(tcr['inferred_full_nt'][potential_frames[0]:])
-                        j_f_pos = trans_pos[tcr['j_call']]
-                        for i in range(8, 21):
-                            potential_junction_aa = potential_translation[j_f_pos - i:j_f_pos + 1]
-                            if potential_junction_aa[0] == trans_res[translate_v]:
-                                tcr['non_productive_junction_aa'] = potential_junction_aa
-                                tcr['inferred_full_aa'] += ',' + translate(
-                                    tcr['inferred_full_nt'][potential_frames[0]:])
-                                tcr['conserved_f'] = 'T'
-                                break
+                    tcr = attempt_salvage_irregular_cdr3s(tcr, translate_v, translate_j)
 
                 if 'non_productive_junction_aa' not in tcr:
                     tcr['non_productive_junction_aa'] = tcr['junction_aa']
-
                 tcr['junction_aa'] = ''
 
         else:
@@ -682,6 +687,50 @@ def find_cdr3(tcr):
                               trans_pos[translate_v] * 3:(trans_pos[translate_j] * 3) + 2]
 
     return tcr
+
+
+def attempt_salvage_irregular_cdr3s(tcr_dict, v_translate, j_translate):
+    """
+    Try to find CDR3s in irregular rearrangements (particularly necessary when using irregular V-REGION references)
+    :param tcr_dict: Dictionary describing rearrangement under consideration
+    :param v_translate: str ID of V gene being used for translation purposes (maybe differ if >1 detected)
+    :param j_translate: str ID of V gene being used for translation purposes (maybe differ if >1 detected)
+    :return: tcr_dict, hopefully updated with any CDR3s the regular assumptions failed to catch now annotated
+    """
+    potential_frames = []
+    potential_translations = []
+
+    for frame in range(3):
+        potential_translation = translate(tcr_dict['inferred_full_nt'][frame:])
+
+        if potential_translation[trans_pos[j_translate]] == trans_res[j_translate]:
+            potential_frames.append(frame)
+            potential_translations.append(potential_translation)
+
+    # If there's two frames, one which has stops and one which doesn't, keep the one without
+    if len(potential_frames) == 2:
+        discard = []
+        for i in [0, 1]:
+            if '*' in potential_translations[i]:
+                discard.append(i)
+        if len(discard) == 1:
+            potential_frames.pop(discard[0])
+
+    # If there's a single frame in which there's a conserved F residue at the appropriate location...
+    if len(potential_frames) == 1:
+        # ... look upstream until it finds a C (within a typical distance)
+        potential_translation = translate(tcr_dict['inferred_full_nt'][potential_frames[0]:])
+        j_f_pos = trans_pos[temp_j_call]
+        for i in range(8, 21):
+            potential_junction_aa = potential_translation[j_f_pos - i:j_f_pos + 1]
+            if potential_junction_aa[0] == trans_res[v_translate]:
+                tcr_dict['non_productive_junction_aa'] = potential_junction_aa
+                tcr_dict['inferred_full_aa'] += ',' + translate(
+                    tcr_dict['inferred_full_nt'][potential_frames[0]:])
+                tcr_dict['conserved_f'] = 'T'
+                break
+
+    return tcr_dict
 
 
 out_headers = ['sequence_id', 'v_call', 'd_call', 'j_call', 'junction_aa', 'duplicate_count', 'sequence',
