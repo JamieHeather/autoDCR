@@ -22,7 +22,7 @@ from acora import AcoraBuilder
 from time import time
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.2.6'
+__version__ = '0.2.7'
 __author__ = 'Jamie Heather'
 
 
@@ -62,6 +62,10 @@ def args():
     parser.add_argument('-dl', '--deletion_limit', type=int, required=False, default=30,
                         help='Upper limit of allowable deletions for each of V/J in a recombination. Default = 30.')
 
+    parser.add_argument('-cl', '--cdr3_limit', type=int, required=False, default=30,
+                        help='Upper limit of allowable length of translated CDR3 junctions. Default = 30. '
+                             'Set to 0 for no limit.')
+
     parser.add_argument('-jv', '--jump_values', action='store_true', required=False,
                         help="Optionally output the V and J 'jump' values, which record the position of the outermost "
                              "edges of the detected TCR rearrangements.")
@@ -76,7 +80,6 @@ def args():
                              'rather than the farthest (most distal) ones as per usual.'
                              '\nNote this is a highly experimental feature, but can be useful for applications where '
                              'users can reasonably expect variations indels/unexpected splicing in V/J genes.')
-
 
     parser.add_argument('-dt', '--dont_translate', action='store_true', required=False,
                         help='Stop the automatic translation of TCRs.')
@@ -662,11 +665,24 @@ def find_cdr3(tcr):
             else:
                 tcr['conserved_f'] = 'T'
 
+            # And check whether the CDR3 falls within the expected length range
+            if input_args['cdr3_limit'] > 0:
+                if len(tcr['junction_aa']) <= input_args['cdr3_limit']:
+                    tcr['cdr3_in_limit'] = 'T'
+                else:
+                    tcr['cdr3_in_limit'] = 'F'
+                    tcr['junction_aa'] = ''
+                    tcr['productive'] = 'F'
+
+            else:
+                tcr['cdr3_in_limit'] = ''
+
+
         else:
             tcr['productive'] = 'F'
 
         # Cryptic splices in leader processing can result in a variety of translation issues, let's catch those
-        if tcr['inferred_full_aa'] and not tcr['junction_aa']:
+        if tcr['inferred_full_aa'] and not tcr['junction_aa'] and tcr['inter_tag_seq']:
             tcr = attempt_salvage_irregular_cdr3s(tcr, translate_v, translate_j)
 
         if tcr['productive'] == 'F':
@@ -720,7 +736,7 @@ def attempt_salvage_irregular_cdr3s(tcr_dict, v_translate, j_translate):
     if len(potential_frames) == 1:
         # ... look upstream until it finds a C (within a typical distance)
         potential_translation = translate(tcr_dict['inferred_full_nt'][potential_frames[0]:])
-        j_f_pos = trans_pos[temp_j_call]
+        j_f_pos = trans_pos[j_translate]
         for i in range(8, 21):
             potential_junction_aa = potential_translation[j_f_pos - i:j_f_pos + 1]
             if potential_junction_aa[0] == trans_res[v_translate]:
@@ -736,7 +752,7 @@ def attempt_salvage_irregular_cdr3s(tcr_dict, v_translate, j_translate):
 out_headers = ['sequence_id', 'v_call', 'd_call', 'j_call', 'junction_aa', 'duplicate_count', 'sequence',
                'junction', 'rev_comp', 'productive', 'sequence_aa',
                'inferred_full_nt', 'inferred_full_aa', 'non_productive_junction_aa',
-               'vj_in_frame', 'stop_codon', 'conserved_c', 'conserved_f',
+               'vj_in_frame', 'stop_codon', 'conserved_c', 'conserved_f', 'cdr3_in_limit',
                'inter_tag_seq', 'inter_tag_qual', 'umi_seq', 'umi_qual',
                'sequence_alignment', 'germline_alignment', 'v_cigar', 'd_cigar', 'j_cigar']
 

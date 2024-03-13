@@ -1,7 +1,7 @@
 # autoDCR
 
-### v0.2.3
-#### Jamie Heather, MGH, 2022
+### v0.2.7
+#### Jamie Heather, MGH, 2024
 
 ### Introduction
 
@@ -9,7 +9,7 @@
 
 The first big difference between the scripts is what tags are looked for. `Decombinator` aims to find single CDR3-proximal tags (i.e. in the 3' of V genes or 5' of J genes) which aim to identify individual TCR genes - ideally covering all of the alleles of that gene - producing an extremely concise trie which can very rapidly search large datasets. Instead, `autoDCR` generates overlapping tags across the entirety of all alleles for all genes for both TRA and TRB, producing a much larger trie. Tags will then potentially cover multiple genes, but genes are called based on the intersection between genes/alleles covered in all tags which they matched. 
 
-This sacrifices the speed of `Decombinator`, but allows for greater resolution of TCR genes and alleles, while using and retaining sequence information from a greater portion of the input TCR read. This tag approach also makes the automation of tag generation much simpler, making it much easier to either update `autoDCR` when new TCR alleles are discovered, or even to apply it to novel species for which TCR information has recently become available.
+This sacrifices the speed of `Decombinator`, but allows for greater resolution of TCR genes and alleles, while using and retaining sequence information from a greater portion of the input TCR read. This tag approach also makes the automation of tag generation much simpler, making it much easier to either update `autoDCR` when new TCR alleles are discovered, or even to apply it to situations like non-natural repertoires, or for novel species for which TCR information has recently become available.
 
   * [Original `Decombinator` paper DOI: 10.1093/bioinformatics/btt004](https://doi.org/10.1093/bioinformatics/btt004)
   * [V4 update paper DOI: 10.1093/bioinformatics/btaa758](https://doi.org/10.1093/bioinformatics/btaa758)
@@ -24,12 +24,19 @@ In order to use `autoDCR` you must first make the .tag and .translate files for 
     * Note that currently `autoDCR` is designed with TRA and TRB genes, and it's recommended that if you plan to regularly look for both you just generate files with both TRA and TRB combined. 
       * However if you know you're only interested in one specific locus you can download just the genes for that.
       * Note that in humans all TRDV genes can be found recombined with TRAJ (even those genes not necessarily labelled as TRAVx/DVx), so I recommend including all TRDV genes for alpha/beta recombination searches.
-    * Save as a FASTA file, retaining the '|' delimited header information.
-    * Try to use a one word species name (without any special characters, including '.' characters) to name this file.
-    * E.g. 'human.fasta' or 'mouse.fasta'.
-* Generate appropriate tag and translation files using `generate-tag-files.py`, e.g.:
+    * Save as a FASTA file, retaining the pipe- ('`|`') delimited IMGT header information.
+    * Try to include date and IMGT release number (and any other pertitent information) in the file name, as the output files will be renamed to the species in question (E.g. 'human.fasta' or 'mouse.fasta'). Input file name information will be retained in the log file.
+  * The recommended way to achieve all this is by using the [IMGTgeneDL](https://github.com/JamieHeather/IMGTgeneDL) package:
+
+```bash
+pip install IMGTgeneDL
+# Example download of all human V and J genes for TRA and TRB
+IMGTgeneDL -s Homo+sapiens -L AB -v -j
 ```
-python generate-tag-files.py -in human.fasta
+
+* Generate appropriate tag and translation files using `generate-tag-files.py`, e.g. using the above `IMGTgeneDL` example:
+```
+python generate-tag-files.py -in 2024-03-13_202410-7_Homo+sapiens_AB_VJ.fasta 
 ```
 * This will generate two tab-separated files:
   * \[x\].tags, describing the tags used for searching TCRs, with the fields:
@@ -43,9 +50,10 @@ python generate-tag-files.py -in human.fasta
 * Note that in both file types, positions are counted forwards from the 5' of the V or backwards from the 3' end of the J.
   * Not only is it conceptually easier to count backwards for the Js (due to the start of the J being obscured by V(D)J recombination), but the conserved FGXG motifs tend to fall at specific positions relative to the end of the Js, at least in functional genes, presumably due to evolutionary constraints. 
 * If this is the first time generating these files for a particular species, be sure to check the .log file.
-    * Be particularly on the lookout for genes that are flagged with 'Manually verify': these are genes for which the automatic conserved motif detection was unsuccessful.
+    * Conserved C/FGXG motifs are detected using regexes manually produced by generating positional weight matrices of all four human TCR loci, which allows it to detect even non-canonical residues at the conserved positions, in allele sequences that may be incomplete. 
+    * However these motifs may be less conserved between species, and so if the log file shows that there are many predicted-functional genes not being found with high-confidence motifs users may wish to inspect and correct the `regexes` dictionary in `generate-tag-files.py`.
 
-An example of this using the human TRA/TRB loci (downloaded from IMGT/GENE-DB on 2021-08-14) has been included in this repo.
+An example of the products of this process using the human TRA/TRB loci (downloaded from IMGT/GENE-DB on 2024-03-13, release `202410-7`) has been included in this repo.
 
 ### Running `autoDCR`
 

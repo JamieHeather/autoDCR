@@ -14,12 +14,13 @@ import argparse
 import datetime
 import os
 import re
+import shutil
 import collections as coll
 import autoDCR as dcr
 from time import strftime, localtime
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.1.2'
+__version__ = '0.2.1'
 __author__ = 'Jamie Heather'
 
 
@@ -30,14 +31,17 @@ def args():
 
     # Help flag
     parser = argparse.ArgumentParser(
-        description='generate-tag-files v' + __version__ + ': automatically generate tag and translation files'
-                                                           'for use with autoDCR.')
+        description="generate-tag-files v" + __version__ + ": automatically generate tag and translation files"
+                    "for use with autoDCR.")
     # Add arguments
-    parser.add_argument('-in', '--fasta', type=str, required=True, help='FASTA file containing all the IMGT V/J '
-                        'alpha/beta TCR genes for the species in question. Name for species, e.g. \'human.fasta\'.')
+    parser.add_argument('-in', '--fasta', type=str, required=True, help="FASTA file containing all the IMGT V/J alpha/"
+                        "beta TCR genes for the species in question. It\'s recommended to include date+release info.")
 
     parser.add_argument('-sw', '--sliding_window', type=int, required=False, default=20,
-                        help='Length of tag sliding window. Optional. Default = 20.')
+                        help="Length of tag sliding window. Optional. Default = 20.")
+
+    parser.add_argument('-sp', '--species', type=str, required=False, default='human', help="String of species name, "
+                        "used to prefix all output fields. Default = 'human'.")
 
     return parser.parse_args()
 
@@ -76,6 +80,19 @@ def translate(seq):
     return protein
 
 
+def find_cys(regex, search_str):
+    """
+    :param regex: str describing a regular expression to search for
+    :param search_str: str of a sequence to search within
+    :return: the index of the putative conserved Cys reg based on the last instance of that given regex
+    """
+    hits = [search_str.rfind(x) + len(x) - 1 for x in re.findall(regex, search_str)]
+    if hits:
+        return hits[-1]
+    else:
+        return
+
+
 def get_jump(gene_name, tag_number):
     """
     Determine the jump value for proper translation of a rearrangement using a particular gene
@@ -91,6 +108,212 @@ def get_jump(gene_name, tag_number):
         raise IOError("Unrecognised gene type detected: " + gene_name)
 
 
+def log_functionality(funct_dict, allele_name):
+    """
+    :param funct_dict: dict of strs of functionalities of each gene
+    :param allele_name: str of the full gene*allele name in question
+    :return: string describing the functionality of the allele in question
+    """
+    if allele_name not in funct_dict:
+        return "Error: gene not found in 'funct_dict' dictionary! "
+
+    elif funct_dict[allele_name] in ['F', '(F)', '[F]']:
+        return "Gene is recorded as functional, and expected to be able to make working TCRs. "
+
+    elif funct_dict[allele_name] == 'ORF':
+        return "Gene is recorded as an ORF, and thus might not be able to make working TCRs. "
+
+    elif funct_dict[allele_name] in ['P', '(P)', '[P]']:
+        return "Gene is recorded as a pseudogene, and thus expected to not make working TCRs. "
+
+    else:
+        return "Error: gene has an indeterminate functionality (" + funct_dict[allele_name] + "). "
+
+
+def log_partiality(part_dict, allele_name, allele_type):
+    """
+    :param part_dict: dict of str of partial sequence information (where available)
+    :param allele_name: str of name of allele (gene*allele)
+    :param allele_type: str of 'V' or 'J'
+    :return: str (if gene == V which is partial in 3') or nothing
+    """
+    if allele_type == 'V':
+        if "3'" in part_dict[allele_name]:
+            return "Gene sequence is also partial in 3', so conserved C was potentially lost. "
+        else:
+            return ''
+    else:
+        return ''
+
+
+def find_motif(regex_list, allele_name, type_gene, allele_seq, func_str):
+    """
+    :param regex_list: list of strings describing regular expressions to search for
+    :param allele_name: str of name (gene*allele) of allele in question
+    :param type_gene: str specifying the gene type ('V' or 'J')
+    :return: aa_seq, index of the (first detected) putative conserved motif, motif used, and the residue
+    NB: requires 'regexes' and 'j_pos' to be globally declared
+    """
+
+    # Vs can just be directly translated, as V-REGIONS start in-frame
+    if type_gene == 'V':
+        aa_seq = translate(allele_seq)
+        for regex in regex_list:
+            # Return the 3' most hit
+            hits = [aa_seq.rfind(x) + len(x) - 1 for x in re.findall(regex, aa_seq)]
+            if hits:
+                return aa_seq, hits[-1], regex, aa_seq[hits[-1]]
+
+        return [''] * 4
+
+    # Js are trickier, requiring determination of the right frame, and conserved motifs lying in different registers
+    # Start at -11/-10 positions for TRAJ/TRBJ amino acid sequences - defines the 'base' expected motif site
+    elif type_gene == 'J':
+        if func_str == '(F)':
+            # nt_start += 1
+            modifier = 1
+        else:
+            modifier = 0
+
+        # Get AA seq. NB: end of the J needs to be in frame, not the start (after deleting the base that splices to C)
+        modulo = (len(allele_seq) - 1 + modifier) % 3
+        aa_seq = translate(allele_seq[modulo:])
+
+        backups = [aa_seq, '', '', '']
+        backup_dist = 0
+
+        for regex in regex_list:
+            # Now we want the 5' index of the hits (the F position)
+            hits = [-(len(aa_seq) - aa_seq.index(x)) for x in re.findall(regex, aa_seq)]
+
+            if len(hits) == 1:
+                return aa_seq, hits[0], regex, aa_seq[hits[0]]
+
+            elif len(hits) > 1:
+                expected_hit = [x for x in hits if x == j_pos[allele_name[:4]]]
+                if expected_hit:
+                    return aa_seq, expected_hit[0], regex, aa_seq[expected_hit[0]]
+
+                # Keep tabs of the 'least worst' alternative if no single good hit in the right place found
+                for hit in hits:
+                    if abs(j_pos[allele_name[:4]] - hit) > backup_dist:
+                        backup_dist = abs(j_pos[allele_name[:4]] - hit)
+                        backups[1:] = [hit, regex, aa_seq[hit]]
+
+        # If we made it here we didn't get a good hit
+        if backup_dist != 0:
+            return backups
+        else:
+            return [''] * 4
+
+    else:
+        raise IOError("Unexpected gene type detected (" + type_gene + ")! ")
+
+
+def find_junction_residues(all_gene_list, full_gene_dict, func_dict, partial_dict, log_text):
+    """
+    :param all_gene_list: list of all gene*alleles input
+    :param full_gene_dict: dict of full nt seqs of gens
+    :param func_dict: dict of strs of recorded (predicted) functionality of each allele
+    :param partial_dict: dict of strings of partiality (i.e. whether gene partial in 5'/3'/both, if applicable)
+    :param log_text: str of text for log file, to be appended to
+    :return: two strings to write out: that for the translate file, and the updated log file contents
+    """
+
+    positions = coll.defaultdict(list)
+    motifs = coll.defaultdict(list)
+
+    # If there's only one C residue in the C terminus of the V, take that as the C terminal residue.
+    # NB the residue immediately prior to the conserved C is usually an L or an F...
+    # ... and the residue before that is almost always a Y
+    all_gene_list.sort()
+
+    for ga in all_gene_list:
+        log_text += '\n' + ga + '\t'
+
+        gene_type = ga[3]
+        if gene_type not in ['V', 'J']:
+            raise IOError("Unexpected gene type (not V/J) detected: " + gene_type)
+
+        func = log_functionality(func_dict, ga)
+        part = log_partiality(partial_dict, ga, gene_type)
+
+        # First try high-confidence motifs
+        aa, position, motif, residue = find_motif(regexes[gene_type][1], full_gene_dict[ga],
+                                                  gene_type, full_genes[ga], func_dict[ga])
+
+        if motif:
+            log_text += 'Found a high-confidence motif: "' + motif + '". '
+            positions[ga] = position
+            motifs[ga] = residue
+            confidence = 'high'
+
+        # If that fails, try less confident
+        else:
+            aa, position, motif, residue = find_motif(regexes[gene_type][2], full_gene_dict[ga],
+                                                      gene_type, full_genes[ga], func_dict[ga])
+            if motif:
+                log_text += 'Found a lower-confidence motif: "' + motif + '". '
+                positions[ga] = position
+                motifs[ga] = residue
+                confidence = 'low'
+            else:
+                log_text += 'Did not find a conserved residue motif - unable to translate. '
+                positions[ga] = ''
+                motifs[ga] = ''
+                confidence = 'null'
+
+        if positions[ga]:
+            # If the detected C is far from the end, or gene is partial in 3', try to use the prototypical gene's call
+            if gene_type == 'V':
+                sanity_len_check = len(aa) - position > c_sanity_len
+
+                if ((sanity_len_check or part) and confidence == 'low') or confidence == 'null':
+                    proto = ga.split('*')[0] + '*01'
+                    if (ga != proto) and (proto in positions):
+                        positions[ga] = positions[proto]
+                        motifs[ga] = motifs[proto]
+                        log_text += ("Unable to find a high-confidence motif (close to the V region end) and/or gene"
+                                     " is partial in it's 3 - using ") + proto + "'s. "
+
+            # Also record whether the J motif is at the expected position relative to the 3' end of the gene
+            elif gene_type == 'J':
+                if position != j_pos[ga[:4]]:
+                    log_text += 'J gene motif not at the expected location (' + str(j_pos[ga[:4]]) + '). '
+
+        log_text += func + part
+
+    all_vs = [x for x in all_gene_list if 'V' in x.split('*')[0]]
+    all_vs.sort()
+
+    all_js = [x for x in all_gene_list if 'J' in x.split('*')[0]]
+    all_js.sort()
+
+    all_vj = all_vs + all_js
+    if len(all_vj) != len(all_gene_list):
+        raise IOError('V+J gene count != all gene count! ')
+
+    tag_text = []
+    for gene in all_vj:
+        tag_text.append('\t'.join([gene, str(positions[gene]), motifs[gene]]))
+
+    return '\n'.join(tag_text), log_text
+
+
+# Regular expressions used to determine location of conserved CDR3-definining residues
+# Manually constructed from human TCR genes (TRA/TRB/TRG/TRD)
+regexes = {'V': {1: ['[AST][AGS].Y[FILY].', '[AGS].Y[FILY].', '[AST]..Y[FILY].',
+                     '[AST][AGS]..[FILY].', '[AST][AGS].Y..', '[AST][AGS].Y[FILY].'],
+                 2: ['Y[FILY]C', 'Y.C', 'C']},
+           'J': {1: ['FG.GT.[LV]', '.G.GT.[LV]', 'F..GT.[LV]', 'FG..T.[LV]', 'FG.G..[LV]', 'FG.GT.'],
+                 2: ['FG.G', 'WG.G', 'CG.G', 'F..G', 'FG..', 'LG.G']}}
+
+# Relative expected positions of conserved J gene FGXG motifs
+j_pos = {'TRAJ': -11, 'TRBJ': -10}  # TODO include TRDJ/TRGJ?
+
+c_sanity_len = 15
+
+
 if __name__ == '__main__':
 
     r = '\n'                        # Carriage return, for log text
@@ -104,9 +327,13 @@ if __name__ == '__main__':
     if not os.path.exists(input_file):
         raise IOError("Cannot find source IMGT input TCR FASTA file.")
     else:
-        nam = input_file.split('.')[0]
+        nam = input_args['species']
         last_mod = strftime('%Y-%m-%d %H:%M:%S', localtime(os.path.getmtime(input_file)))
         log_str += 'Input FASTA file:\t' + input_file + r + 'Input FASTA last modified:\t' + last_mod + r
+
+    # If input FASTA isn't named as the output, generate a copy
+    if input_file.split('.')[0] != input_args['species']:
+        shutil.copyfile(input_file, input_args['species'] + '.fasta')
 
     slide_len = input_args['sliding_window']
     log_str += 'Sliding window length used:\t' + str(slide_len) + r + lb
@@ -184,7 +411,8 @@ if __name__ == '__main__':
     all_genes = list(full_genes.keys())
     all_genes.sort()
 
-    log_str += 'Number genes covered:\t' + str(len(all_genes)) + r + 'Number tags made:\t' + str(len(out_str)) + r
+    log_str += ('Number genes covered:\t' + str(len(all_genes)) + r +
+                'Number tags made:\t' + str(len(out_str)) + r + lb)
 
     if set([x[3] for x in all_genes]) != {'V', 'J'}:
         raise IOError('Please ensure input fasta file contains both V and J genes, properly named as per IMGT.')
@@ -193,160 +421,13 @@ if __name__ == '__main__':
     with open(nam + '.tags', 'w') as out_file:
         out_file.write('\n'.join(out_str))
 
-    all_vs = [x for x in all_genes if 'V' in x.split('*')[0]]
-    all_vs.sort()
+    tag_str, log_str = find_junction_residues(all_genes, full_genes, functionalities, partials, log_str)
 
-    log_str += lb + 'Number V genes covered:\t' + str(len(all_vs)) + r + 'Flagged V genes below:\t' + r
-
-    positions = coll.defaultdict(list)
-    motifs = coll.defaultdict(list)
-
-    # If there's only one C residue in the C terminus of the V, take that as the C terminal residue.
-    # NB the residue immediately prior to the conserved C is usually an L or an F...
-    # ... and the residue before that is almost always a Y
-
-    context_len = 5
-    sanity_len = 10
-    for v in all_vs:
-        found = 0
-        translation = translate(full_genes[v])
-        last_c = translation.rfind('C')
-
-        # Sanity check - is the most C-terminal C residue within a reasonable distance of the end of the V?
-        if len(translation) - last_c > sanity_len:
-
-            log_str += v + ":\t Had no conserved C within " + str(sanity_len) + " translated residues from the " \
-                           "edge of the gene. "
-
-            if functionalities[v] in ['F', '(F)', '[F]']:
-                log_str += "Gene is recorded as functional. "
-
-                if "3'" in partials[v]:
-                    log_str += "Gene sequence is also partial in 3', so conserved C was presumably lost. "
-
-                    proto = v[:-3] + '*01'
-                    if (v != proto) and (proto in positions):
-                        positions[v] = positions[proto]
-                        motifs[v] = motifs[proto]
-                        log_str += "Using the translation details from the prototypical allele " + proto + '.' + r
-                        continue
-
-                    else:
-                        log_str += "No suitable prototypical allele (*01) to copy from. Manually verify. " + r
-                        manually_verify = True
-
-                else:
-                    log_str += "However the gene sequence is reportedly complete. Manually verify. " + r
-                    manually_verify = True
-
-            else:
-                log_str += "Gene is not recorded as functional: this may be why. "
-                if functionalities[v] == 'ORF':
-                    log_str += "Gene is recorded as an ORF: consider verification. " + r
-                else:
-                    log_str += "Gene is recorded as a pseudogene, and thus unlikely to translate anyway. " \
-                               "Taking most 3'." + r
-
-        else:
-            # The other possibility is that there are multiple Cs in the immediate 3' of the V gene
-            context = translation[last_c - context_len:last_c + 1]
-
-            if coll.Counter([x for x in context])['C'] > 1:
-
-                log_str += v + ":\t Has multiple potential conserved C residues in its 3'. "
-
-                # Disregard if pseudogene (most of the multiple Cys V genes)
-                if functionalities[v] in ['P', '(P)', '[P]']:
-                    log_str += "Gene is recorded as a pseudogene, and thus unlikely to translate anyway. " \
-                               "Taking most 3'." + r
-
-                # Otherwise try to use the knowledge that certain residues often precede the conserved C
-                else:
-                    cs = [x for x, residue in enumerate(translation) if 'C' in residue]
-
-                    # Only look in first two, as I'm yet to find a functional V with > 2 Cs in its 3'
-                    picked = False
-                    for c in cs[-2:]:
-                        # Then take the 5' most of those two that matches
-                        if translation[c-1] in ['L', 'Y', 'F']:
-                            positions[v] = c
-                            motifs[v] = 'C'
-
-                            log_str += "Taking position " + str(c) + " as it's preceded by a " + translation[c-1] + \
-                                " residue, which often precedes the conserved Cys." + r
-                            picked = True
-                            continue
-
-                    if picked:
-                        continue
-                    else:
-                        log_str += "Unable to choose between the C residues based on the presence of a known motif. " \
-                                   "Manually verify." + r
-                        manually_verify = True
-
-        positions[v] = last_c
-        motifs[v] = translation[last_c]
-        # TODO also need to account for psuedogenes etc that don't have required motifs
-        # (e.g. TRBV7-3*02/03, which has R instead of conserved C)
-
-    # Then try to find conserved J gene motifs
-    all_js = [x for x in all_genes if 'J' in x.split('*')[0]]
-    all_js.sort()
-    poss_motifs = ['FG.G', 'WG.G', 'CG.G', 'F..G', 'FG..', 'LG.G']
-
-    log_str += lb + 'Number J genes covered:\t' + str(len(all_js)) + r + 'Flagged J genes below:\t' + r
-    for j in all_js:
-        # Go through all J genes, finding the right frame and the conserved F
-        # NB Start at -11/-10 positions for TRAJ/TRBJ amino acid sequences - defines the 'base' expected motif site
-        if 'TRAJ' in j:
-            nt_start = -34
-        elif 'TRBJ' in j:
-            nt_start = -31
-
-        # Check to see whether the IMGT J gene is cDNA only (as those omit the last nucleotide)
-        if functionalities[j] == '(F)':
-            nt_start += 1
-            modifier = 1
-        else:
-            modifier = 0
-
-        base = translate(full_genes[j][nt_start:nt_start + 12])
-        # Get AA seq. NB: end of the J needs to be in frame, not the start (after deleting the base that splices to C)
-        modulo = (len(full_genes[j]) - 1 + modifier) % 3
-        translation = translate(full_genes[j][modulo:])
-        # If you can't find a motif at the canonical site, look elsewhere
-        if not [y[0] for y in [re.findall(x, base) for x in poss_motifs] if y]:
-            search = list(set([y[0] for y in [re.findall(x, translation) for x in poss_motifs] if y]))
-            if len(search) == 1:
-                seq_search = (translation.index(search[0]) * 3) + modulo
-                nt_start = seq_search - len(full_genes[j])
-                log_str += j + ":\tNon-standard position for conserved CDR3 junction ending motif."
-                if translate(full_genes[j][nt_start:nt_start + 12]) != search[0]:
-                    log_str += j + ":\tNon-standard position for conserved CDR3 junction ending motif. " \
-                                   "Manually verify. "
-                    manually_verify = True
-
-        positions[j] = int((nt_start + 1 - modifier) / 3)
-        motifs[j] = translation[positions[j]]
-
-    all_genes = all_vs + all_js
-    out_str = []
-
-    for gene in all_genes:
-        out_str.append('\t'.join([gene, str(positions[gene]), motifs[gene]]))
-
+    # Finally output the tag and log files, containing the details of this specific run
     with open(nam + '.translate', 'w') as out_file:
-        out_file.write('\n'.join(out_str))
+        out_file.write(tag_str)
 
-    # Finally output the log file, containing the details of this specific run
     with open(nam + '.log', 'w') as out_file:
         out_file.write(log_str)
-
-        # TODO fix novel allele details not being present in the log file
-
-    if manually_verify:
-        raise ValueError("Warning: V and/or J genes with irregular CDR3 junction ending motifs discovered, from which "
-                         "the conserved positions required for translations could not be automatically assigned.\n"
-                         "Please refer to log file, manually verify, and update the " + nam + ".translate file.")
 
 # TODO allow users to provide an additional file to specifically override/supply irregular translation details?
