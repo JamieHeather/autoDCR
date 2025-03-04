@@ -13,7 +13,6 @@ Looks for alpha and beta chain rearrangements simultaneously.
 
 """
 
-
 import argparse
 import gzip
 import os
@@ -22,7 +21,7 @@ from acora import AcoraBuilder
 from time import time
 
 __email__ = 'jheather@mgh.harvard.edu'
-__version__ = '0.2.7'
+__version__ = '0.2.8'
 __author__ = 'Jamie Heather'
 
 
@@ -34,7 +33,7 @@ def args():
     # Help flag
     parser = argparse.ArgumentParser(
         description='autoDCR v' + __version__ + ': find rearranged TCR sequences in HTS data, \n'
-                    'using automatically generated tag sets.')
+                                                'using automatically generated tag sets.')
     # Add arguments
     parser.add_argument('-fq', '--fastq', type=str, required=True,
                         help='Correctly demultiplexed/processed FASTQ file containing TCR reads')
@@ -350,6 +349,7 @@ def dcr(sequence, quality, passed_input_arguments):
     check = find_tag_hits(sequence)
 
     if check:
+        check = coll.defaultdict(None, check)
         check['inter_tag_seq'] = sequence[check['v_tag_position']:check['j_tag_position'] + 20]
         if quality:
             check['inter_tag_qual'] = quality[check['v_tag_position']:check['j_tag_position'] + 20]
@@ -507,10 +507,12 @@ def translate(nt_seq):
     :param nt_seq: Nucleotide sequence to be translated
     :return: corresponding amino acid sequence
     """
+    if not dna_check(nt_seq):
+        return
 
     aa_seq = ''
     for i in range(0, len(nt_seq), 3):
-        codon = nt_seq[i:i+3]
+        codon = nt_seq[i:i + 3]
         if len(codon) == 3:
             try:
                 aa_seq += codons[codon]
@@ -591,7 +593,7 @@ def tcr_search(tcr_read, tcr_qual, input_arguments, headers):
 
     else:
         raise IOError("Incorrect orientation argument provided: " + input_arguments['orientation'] + "\n"
-                      "Please specify one of the three options: forward/reverse/both - or f/r/b.")
+                                                                                                     "Please specify one of the three options: forward/reverse/both - or f/r/b.")
 
     if search:
         search['sequence'] = tcr_read
@@ -630,7 +632,9 @@ def find_cdr3(tcr):
         else:
             translate_j = tcr['j_call']
 
-        tcr['junction_aa'] = tcr['inferred_full_aa'][trans_pos[translate_v]:trans_pos[translate_j] + 1]
+        if 'inferred_full_aa' in tcr:
+            if tcr['inferred_full_aa']:
+                tcr['junction_aa'] = tcr['inferred_full_aa'][trans_pos[translate_v]:trans_pos[translate_j] + 1]
 
         # Assume productivity, and remove it as applicable, checking for the various required parameters
         # Note that it's possible for multiple different reasons to be non-productive to be true, in different combos
@@ -643,39 +647,40 @@ def find_cdr3(tcr):
             tcr['vj_in_frame'] = 'F'
 
         # Need to account for cases where there is no detectable/valid CDR3
-        if tcr['junction_aa']:
-            # Check for stop codons...
-            if '*' in tcr['inferred_full_aa']:
-                tcr['stop_codon'] = 'T'
-                tcr['productive'] = 'F'
-            else:
-                tcr['stop_codon'] = 'F'
-
-            # ... and the conserved V gene residue at the right position...
-            if tcr['junction_aa'][0] != trans_res[translate_v]:
-                tcr['conserved_c'] = 'F'
-                tcr['productive'] = 'F'
-            else:
-                tcr['conserved_c'] = 'T'
-
-            # ... and same for the J gene...
-            if tcr['junction_aa'][-1] != trans_res[translate_j]:
-                tcr['conserved_f'] = 'F'
-                tcr['productive'] = 'F'
-            else:
-                tcr['conserved_f'] = 'T'
-
-            # And check whether the CDR3 falls within the expected length range
-            if input_args['cdr3_limit'] > 0:
-                if len(tcr['junction_aa']) <= input_args['cdr3_limit']:
-                    tcr['cdr3_in_limit'] = 'T'
-                else:
-                    tcr['cdr3_in_limit'] = 'F'
-                    tcr['junction_aa'] = ''
+        if 'junction_aa' in tcr:
+            if tcr['junction_aa']:
+                # Check for stop codons...
+                if '*' in tcr['inferred_full_aa']:
+                    tcr['stop_codon'] = 'T'
                     tcr['productive'] = 'F'
+                else:
+                    tcr['stop_codon'] = 'F'
 
-            else:
-                tcr['cdr3_in_limit'] = ''
+                # ... and the conserved V gene residue at the right position...
+                if tcr['junction_aa'][0] != trans_res[translate_v]:
+                    tcr['conserved_c'] = 'F'
+                    tcr['productive'] = 'F'
+                else:
+                    tcr['conserved_c'] = 'T'
+
+                # ... and same for the J gene...
+                if tcr['junction_aa'][-1] != trans_res[translate_j]:
+                    tcr['conserved_f'] = 'F'
+                    tcr['productive'] = 'F'
+                else:
+                    tcr['conserved_f'] = 'T'
+
+                # And check whether the CDR3 falls within the expected length range
+                if input_args['cdr3_limit'] > 0:
+                    if len(tcr['junction_aa']) <= input_args['cdr3_limit']:
+                        tcr['cdr3_in_limit'] = 'T'
+                    else:
+                        tcr['cdr3_in_limit'] = 'F'
+                        tcr['junction_aa'] = ''
+                        tcr['productive'] = 'F'
+
+                else:
+                    tcr['cdr3_in_limit'] = ''
 
 
         else:
@@ -687,22 +692,32 @@ def find_cdr3(tcr):
 
         if tcr['productive'] == 'F':
 
-            if tcr['junction_aa']:
+            if 'junction_aa' in tcr:  # TODO clean up all these double nested checks - institute all TCR dicts with all fields then add as detected
+                if tcr['junction_aa']:
 
-                # Additional check to try to salvage recovery of CDR3s in frame-shifted receptors
-                # Works off scanning from conserved F (if present) and scanning N-wards for the next C
-                if tcr['stop_codon'] == 'T' and tcr['conserved_f'] == 'F':
-                    tcr = attempt_salvage_irregular_cdr3s(tcr, translate_v, translate_j)
+                    # Additional check to try to salvage recovery of CDR3s in frame-shifted receptors
+                    # Works off scanning from conserved F (if present) and scanning N-wards for the next C
+                    if tcr['stop_codon'] == 'T' and tcr['conserved_f'] == 'F':
+                        tcr = attempt_salvage_irregular_cdr3s(tcr, translate_v, translate_j)
 
-                if 'non_productive_junction_aa' not in tcr:
-                    tcr['non_productive_junction_aa'] = tcr['junction_aa']
-                tcr['junction_aa'] = ''
+                    if 'non_productive_junction_aa' not in tcr:
+                        tcr['non_productive_junction_aa'] = tcr['junction_aa']
+                    tcr['junction_aa'] = ''
 
         else:
             tcr['junction'] = tcr['inferred_full_nt'][
                               trans_pos[translate_v] * 3:(trans_pos[translate_j] * 3) + 2]
 
     return tcr
+
+
+def dna_check(possible_dna):
+    """
+    Function adapted from the stitchr codebase
+    :param possible_dna: A sequence that may or may not be a plausible DNA (translatable!) sequence
+    :return: True/False
+    """
+    return set(possible_dna.upper()).issubset({'A', 'C', 'G', 'T'})
 
 
 def attempt_salvage_irregular_cdr3s(tcr_dict, v_translate, j_translate):
@@ -755,7 +770,6 @@ out_headers = ['sequence_id', 'v_call', 'd_call', 'j_call', 'junction_aa', 'dupl
                'vj_in_frame', 'stop_codon', 'conserved_c', 'conserved_f', 'cdr3_in_limit',
                'inter_tag_seq', 'inter_tag_qual', 'umi_seq', 'umi_qual',
                'sequence_alignment', 'germline_alignment', 'v_cigar', 'd_cigar', 'j_cigar']
-
 
 if __name__ == '__main__':
 
@@ -841,6 +855,6 @@ if __name__ == '__main__':
     print("Found", str(counts['rearrangements']), "rearranged TCRs in", str(counts['reads']), "reads")
     if discover:
         print("Of these,", str(counts['mismatched_germlines']), "showed discontinuous tag matches "
-              "and were kept aside for inference of potential new alleles.")
+                                                                "and were kept aside for inference of potential new alleles.")
 
     # TODO sort summary output (maybe into YAML?)
