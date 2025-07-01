@@ -68,7 +68,7 @@ Then compare the output of the GenBank files produced in the image below, screen
 * The second 'inferred' option instead annotated the 'full inferred' TCR produced by ``autoDCR`` during its analysis (which is more useful in shorter read TCR sequences).
 * The final option shows the results of 'tags', in which the individual location of matched tags are recorded, alongside the full regions. This can be particularly useful for investigating strange TCR reads (and is used a lot when developing novel ``autoDCR`` functions).
 
-.. image:: ../../images/cli-examples.png
+.. image:: ../images/cli-examples.png
    :alt: Three snapshots of SnapGene Viewer views of different sequence files produced using the autoDCR cli GenBank output mode. Top-to-bottom: default 'read' mode, 'inferred' mode, and 'tags' mode.
    :align: center
 

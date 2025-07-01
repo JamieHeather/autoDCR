@@ -16,7 +16,7 @@ release = '0.3.0'
 
 extensions = ['sphinx.ext.autosectionlabel']
 
-templates_path = ['source/_templates']
+templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 
@@ -28,4 +28,4 @@ html_theme = 'sphinx_rtd_theme'
 html_theme_options = {
     'navigation_depth': 1,
 }
-html_static_path = ['source/_static']
+html_static_path = ['_static']
