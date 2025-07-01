@@ -1,0 +1,270 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generating reference data &mdash; autoDCR 0.3.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e259d695"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="FASTA/Q V/J/CDR3 annotation with autoDCR annotate" href="annotate.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            autoDCR
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Generating reference data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="annotate.html">FASTA/Q V/J/CDR3 annotation with autoDCR annotate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcrtranscripts.html">Analysing full TCR transcripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Annotate single TCRs in the command line with autoDCR cli</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcrproteins.html">Annotating TCR protein sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="importing.html">Importing autoDCR to other scripts</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">autoDCR</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Generating reference data</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/referencedata.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="generating-reference-data">
+<h1>Generating reference data<a class="headerlink" href="#generating-reference-data" title="Link to this heading"></a></h1>
+<p>In order to work, <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> requires a few different reference files (which differ slightly depending on the mode being being run). These files are automatically generated using the <code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">refs</span></code> command, which in turn uses the <a class="reference external" href="https://jamieheather.github.io/stitchr/">stitchr</a>-style output of <a class="reference external" href="https://github.com/JamieHeather/IMGTgeneDL">IMGTgeneDL</a>, a tool used to automatically download and parse germline TCR allele data from <a class="reference external" href="https://imgt.org/genedb/doc">IMGT/GENE-DB</a>.</p>
+<section id="autodcr-data-directory">
+<h2><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> data directory<a class="headerlink" href="#autodcr-data-directory" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> generates its own data directory during installation, and will download and manage its content there itself. If everything is working as it should, end users shouldn’t need to manually interact with their data directory much, but if it is required the location of this database can be printed by running <code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">dd</span></code>.</p>
+</section>
+<section id="autodcr-refs">
+<h2><code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">refs</span></code><a class="headerlink" href="#autodcr-refs" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">refs</span></code> is the subcommand that grabs and manages the reference data.</p>
+<section id="basic-referencing">
+<h3>Basic referencing<a class="headerlink" href="#basic-referencing" title="Link to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> can theoretically be used to analyse any of the four common TCR loci (alpha, beta, gamma, delta) for which IMGT has sufficient information (see <a class="reference external" href="https://jamieheather.github.io/stitchr/inputdata.html">this page of the stitchr documentation</a> for more details). The majority of TCRseq research (including my own) deals with human alpha/beta data, which is reflected in most of the <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> default parameters.</p>
+<p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> identifies TCR genes used in a rearrangement by scanning reads with an Aho-Corasick trie built from short ‘tag’ sequences, themselves produced by taking overlapping subsequences from all allele gene sequences in the provided reference. In order to use <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> in its simplest form - i.e. annotating V, J, and CDR3 regions in TCRseq reads - one need only run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># for human data</span>
+autoDCR<span class="w"> </span>refs
+
+<span class="c1"># for other species</span>
+autoDCR<span class="w"> </span>refs<span class="w"> </span>-s<span class="w"> </span><span class="o">[</span>species<span class="w"> </span>common<span class="w"> </span>name<span class="o">]</span>
+autoDCR<span class="w"> </span>refs<span class="w"> </span>-s<span class="w"> </span>mouse
+</pre></div>
+</div>
+<p>When you run that, <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> grabs and processes the necessary data for its style of annotation.</p>
+<ul class="simple">
+<li><p>By default this is done for all V and J genes of TRA and TRB genes together, so that the same process can be applied to all A/B human reads regardless of locus.</p></li>
+<li><p>Running <code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">refs</span></code> under its default conditions will therefore generate a ‘HUMAN’ folder in the data directory.</p></li>
+<li><dl class="simple">
+<dt>That will contain several kinds of files, including:</dt><dd><ul>
+<li><dl class="simple">
+<dt>General files relating to the establishment of the species-specific data directory:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">imgt-data.fasta</span></code>, containing all of the unfiltered reads from the IMGT reference for the requested species (humans, by default).</p></li>
+<li><p>Locus-specific filtered versions of that (<code class="docutils literal notranslate"><span class="pre">TRA.fasta,</span> <span class="pre">TRB.fasta</span></code> etc).</p></li>
+<li><p>Some automatically-produced motif files produced by <code class="docutils literal notranslate"><span class="pre">IMGTgeneDL</span></code> (<code class="docutils literal notranslate"><span class="pre">C-</span></code> and <code class="docutils literal notranslate"><span class="pre">J-regionmotifs.tsv</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">data-production-date.tsv</span></code>, which contains information about the date and release of IMGT/GENE-DB used (which should be retained for reporting when publising any results generated with a given reference).</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>Several files prefixed <code class="docutils literal notranslate"><span class="pre">AB_JV</span></code> (representing ‘alpha/beta V and J genes’):</dt><dd><ul>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">*.fasta</span></code> file, containing the subset of genes used for a specific trie.</p></li>
+<li><dl class="simple">
+<dt>A <code class="docutils literal notranslate"><span class="pre">*.tags</span></code> file, containing the specific tags used to populate the trie, and the specific alleles they are found in. These contain several fields:</dt><dd><ul>
+<li><p>tag sequences (by default 20-mers), used in the actual tag searching</p></li>
+<li><p>tag jump values (comma-separated where applicable), which indicates the position in the gene of that tag</p></li>
+<li><p>comma-separated lists of the alleles covered by each tag</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>A <code class="docutils literal notranslate"><span class="pre">*.translate</span></code> file, detailing automatically-inferred conserved V and J gene motifs used to help translate TCRs and identify CDR3 junctions, specifically with the fields:</dt><dd><ul>
+<li><p>TCR allele</p></li>
+<li><p>relative position</p></li>
+<li><p>amino acid found at the conserved residue position</p></li>
+<li><p>Note that in both file types, positions are counted forwards from the 5’ of the V or backwards from the 3’ end of the J.</p></li>
+<li><p>Not only is it conceptually easier to count backwards for the Js (due to the start of the J being obscured by V(D)J recombination), but the conserved FGXG motifs tend to fall at specific positions relative to the end of the Js, at least in functional genes, presumably due to evolutionary constraints.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>A <code class="docutils literal notranslate"><span class="pre">*.log</span></code> file, which is not used in subsequent TCR annotation efforts but which contains metadata produced during the automatic processing of a given species’ genes (see Notes section below).</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>You can specify exactly which loci <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> files are generated for using the <code class="docutils literal notranslate"><span class="pre">--loci</span> <span class="pre">/</span> <span class="pre">-L</span></code> flag, e.g.:</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Gamma/delta TCR references</span>
+autoDCR<span class="w"> </span>refs<span class="w"> </span>-L<span class="w"> </span>GD
+
+<span class="c1"># Single chain A/B references (to process individually)</span>
+autoDCR<span class="w"> </span>refs<span class="w"> </span>-L<span class="w"> </span>A
+autoDCR<span class="w"> </span>refs<span class="w"> </span>-L<span class="w"> </span>B<span class="w"> </span>-sd
+</pre></div>
+</div>
+<ul class="simple">
+<li><dl class="simple">
+<dt>Note the use of the <code class="docutils literal notranslate"><span class="pre">skip_download</span> <span class="pre">/</span> <span class="pre">--sd</span></code> flag</dt><dd><ul>
+<li><p>If not used, each use of <code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">refs</span></code> will over-write the previous data.</p></li>
+<li><p>As some more advanced features of <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> require multiple iterations of <code class="docutils literal notranslate"><span class="pre">refs</span></code> to be applied to the same dataset, users must take care to ensure the correct order of commands using <code class="docutils literal notranslate"><span class="pre">-sd</span></code> is observed.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</section>
+<section id="novel-allele-supplementation">
+<h3>Novel allele supplementation<a class="headerlink" href="#novel-allele-supplementation" title="Link to this heading"></a></h3>
+<p>As part of my interest in the impact of human TCR gene polymorphism, I maintain a <a class="reference external" href="https://github.com/JamieHeather/novel-tcr-alleles/">resource tracking putative novel human TCR alleles (not featured in IMGT/GENE-DB) identified in the literature</a>. If users wish to include these alleles in their database, they can run the following command:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>autoDCR<span class="w"> </span>refs<span class="w"> </span>-nv
+</pre></div>
+</div>
+<p>Note that this uses a function adapted from <code class="docutils literal notranslate"><span class="pre">stitchr</span></code> (version 0.3.0), which <a class="reference external" href="https://jamieheather.github.io/stitchr/inputdata.html#using-novel-inferred-human-tcr-alleles">is described in slightly more detail in the stitchr docs</a>.</p>
+</section>
+<section id="additional-region-referencing">
+<h3>Additional region referencing<a class="headerlink" href="#additional-region-referencing" title="Link to this heading"></a></h3>
+<p>In addition to typical V/J/CDR3 annotation, <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> also has some modes which permit additional annotation of the leader sequence and constant regions of a rearranged TCR.</p>
+<p>In order to extract the necessary information for these modes, users must first generate the corresponding reference information, achieved by running <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> refs with the appropriate <code class="docutils literal notranslate"><span class="pre">--regions</span> <span class="pre">/</span> <span class="pre">-r</span></code> flag with the <code class="docutils literal notranslate"><span class="pre">skip_download</span> <span class="pre">/</span> <span class="pre">-sd</span></code> flag, after running regular reference production (+/- novel alleles) for that species. E.g.:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># For human AB TCRs, first you must have run</span>
+autoDCR<span class="w"> </span>refs
+<span class="c1"># Or, if including novel alleles</span>
+autoDCR<span class="w"> </span>refs<span class="w"> </span>-nv
+
+<span class="c1"># Then to add the constant and leader files</span>
+autoDCR<span class="w"> </span>refs<span class="w"> </span>-sd<span class="w"> </span>-r<span class="w"> </span>CL
+</pre></div>
+</div>
+</section>
+<section id="tcr-protein-sequence-referencing">
+<h3>TCR protein sequence referencing<a class="headerlink" href="#tcr-protein-sequence-referencing" title="Link to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> is also capable of applying its TCR annotation functions to translated polypeptide sequences, as might be found in say repurposed structural data. In order to generate the corresponding files, <code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">refs</span></code> needs to be run with the boolean <code class="docutils literal notranslate"><span class="pre">--protein</span> <span class="pre">/</span> <span class="pre">-aa</span></code> flag. Users also need to supply a decreased sliding window length (which dictates the length of the tags) via the <code class="docutils literal notranslate"><span class="pre">--sliding_window</span> <span class="pre">/</span> <span class="pre">-sw</span></code> flag as below (using a length of 10, which seems to work reasonably well):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># For human AB TCRs, first you must have acquired standard nt V/J sequences</span>
+
+<span class="c1"># Then generate amino acid versions from that</span>
+autodcr<span class="w"> </span>refs<span class="w"> </span>-aa<span class="w"> </span>-sw<span class="w"> </span><span class="m">10</span>
+</pre></div>
+</div>
+<p>Use of the <code class="docutils literal notranslate"><span class="pre">--protein</span> <span class="pre">/</span> <span class="pre">-aa</span></code> flag automatically applies the <code class="docutils literal notranslate"><span class="pre">skip_download</span></code> flag, as it requires the corresponding nucleotide data to have been downloaded already.</p>
+<p>Also note that this is one of the (<cite>even more</cite>) experimental features. As such it currently can only be used for standard V/J/CDR3 annotation, and may behave oddly with some less-common parameters.</p>
+</section>
+<section id="quick-full-human-referencing">
+<h3>Quick full human referencing<a class="headerlink" href="#quick-full-human-referencing" title="Link to this heading"></a></h3>
+<p>The following commands will establish all of the necessary files for the current breadth of <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> functionality, at least as relates to human alpha/beta TCR analysis:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>autoDCR<span class="w"> </span>refs<span class="w"> </span>-nv
+autoDCR<span class="w"> </span>refs<span class="w"> </span>-sd<span class="w"> </span>-r<span class="w"> </span>CL
+autodcr<span class="w"> </span>refs<span class="w"> </span>-aa<span class="w"> </span>-sw<span class="w"> </span><span class="m">10</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="things-to-note">
+<h2>Things to note<a class="headerlink" href="#things-to-note" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>If you use <code class="docutils literal notranslate"><span class="pre">pip</span></code> to uninstall <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> will likely result in the deletion of this folder, so if you are likely to need the contents of the directory (e.g. if you have used a particular configuration to analyse data for publication) it is suggested that you make a prior of this directory before uninstalling.</p></li>
+<li><p>As all TRDV genes can be found recombined with TRAJ (even those genes not necessarily labelled as TRAVx/DVx, at least in humans), <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> automatically considers all TRDV genes when looking for alpha chain recombinations.</p></li>
+<li><dl class="simple">
+<dt>When generating tags for a particular species for the first time, be sure to check the <code class="docutils literal notranslate"><span class="pre">.log</span></code> file produced in the relevant data directory,</dt><dd><ul>
+<li><p>Conserved C/FGXG motifs are detected using regexes manually produced by generating positional weight matrices of all four human TCR loci, which allows it to detect even non-canonical residues at the conserved positions, in allele sequences that may be incomplete.</p></li>
+<li><p>However these motifs may be less conserved between species, and so if the log file shows that there are many predicted-functional genes not being found with high-confidence motifs users may wish to inspect and correct the <cite>regexes</cite> dictionary, stored in the <code class="docutils literal notranslate"><span class="pre">regexes.json</span></code> file located in the data directory.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>If for some reason multiple data directories for a given species are required to be maintained simultaneously, you can navigate to the data directory and rename the species folder (e.g. you could have ‘HUMAN’ and ‘HUMAN2’), which could then be referred to specifically using the <code class="docutils literal notranslate"><span class="pre">--species</span> <span class="pre">/</span> <span class="pre">-s</span></code> of the different <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> commands.</dt><dd><ul>
+<li><p>Each directory needs to be generated with a recognised common name however, as this is what <code class="docutils literal notranslate"><span class="pre">IMGTgeneDL</span></code> uses as a reference to pull out the right reads from IMGT/GENE-DB.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="annotate.html" class="btn btn-neutral float-right" title="FASTA/Q V/J/CDR3 annotation with autoDCR annotate" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Jamie Heather.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

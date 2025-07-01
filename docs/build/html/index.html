@@ -1,0 +1,164 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>autoDCR &mdash; autoDCR 0.3.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e259d695"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            autoDCR
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="referencedata.html">Generating reference data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="annotate.html">FASTA/Q V/J/CDR3 annotation with autoDCR annotate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcrtranscripts.html">Analysing full TCR transcripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Annotate single TCRs in the command line with autoDCR cli</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcrproteins.html">Annotating TCR protein sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="importing.html">Importing autoDCR to other scripts</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">autoDCR</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">autoDCR</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="autodcr">
+<h1>autoDCR<a class="headerlink" href="#autodcr" title="Link to this heading"></a></h1>
+<section id="a-modified-version-of-decombinator-for-flexible-tcr-annotation">
+<h2>A modified version of Decombinator for flexible TCR annotation<a class="headerlink" href="#a-modified-version-of-decombinator-for-flexible-tcr-annotation" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="installation.html#general-usage">General usage</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="referencedata.html">Generating reference data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="referencedata.html#autodcr-data-directory"><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> data directory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="referencedata.html#autodcr-refs"><code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">refs</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="referencedata.html#things-to-note">Things to note</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="annotate.html">FASTA/Q V/J/CDR3 annotation with autoDCR annotate</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="annotate.html#basic-parameters">Basic parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="annotate.html#advanced-options">Advanced options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="annotate.html#things-to-note">Things to note</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tcrtranscripts.html">Analysing full TCR transcripts</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tcrtranscripts.html#things-to-note">Things to note</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Annotate single TCRs in the command line with autoDCR cli</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#cli-output-modes">CLI output modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="cli.html#things-to-note">Things to note</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="tcrproteins.html">Annotating TCR protein sequences</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="tcrproteins.html#things-to-note">Things to note</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="importing.html">Importing autoDCR to other scripts</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="importing.html#things-to-note">Things to note</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> (short for <strong>auto</strong>matic <strong>D</strong>e<strong>c</strong>ombinato<strong>r</strong>) is a python script to perform T cell receptor (TCR) gene annotation of DNA sequencing reads. This is inspired by and in part built upon the core functionality of <a class="reference external" href="https://github.com/innate2adaptive/Decombinator">Decombinator</a>, the TCR analysis software developed by the Chain lab at UCL (in part by me). It uses a similar conceptual framework of using fast Aho-Corasick tries to search for the presence of ‘tag’ sequences in DNA reads, and use these to identify V and J TCR genes.</p>
+<p>The first big difference between the scripts is what tags are looked for. Standard <code class="docutils literal notranslate"><span class="pre">Decombinator</span></code> (V1 to V4) aims to find single CDR3-proximal tags (i.e. in the 3’ of V genes or 5’ of J genes) which identify individual TCR genes - ideally covering all of the alleles of that gene - producing an extremely concise trie which can very rapidly search large datasets. Instead, <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> generates overlapping tags across the <em>entirety</em> of <strong>all alleles</strong> for all genes for both TRA and TRB, producing a much larger trie. Tags will then potentially cover multiple genes, but genes are called based on the intersection between genes/alleles covered in all tags which they matched.</p>
+<p>This sacrifices the speed of <code class="docutils literal notranslate"><span class="pre">Decombinator</span></code>, but allows for greater resolution of TCR genes and alleles, while using and retaining sequence information from a greater portion of the input TCR read. This tag approach also makes the automation of tag generation much simpler, making it much easier to either update <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> when new TCR alleles are discovered, or even to apply it to situations like non-natural repertoires, or for novel species for which TCR information has recently become available.</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><a class="reference external" href="https://doi.org/10.1093/bioinformatics/btt004">Original Decombinator paper DOI: 10.1093/bioinformatics/btt004</a></p></li>
+<li><p><a class="reference external" href="https://doi.org/10.1093/bioinformatics/btaa758">V4 update paper DOI: 10.1093/bioinformatics/btaa758</a></p></li>
+</ul>
+</div></blockquote>
+<p><strong>Note</strong> that <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> is in active development and should be considered highly experimental, and does not offer as full a suite of functions as does <code class="docutils literal notranslate"><span class="pre">Decombinator</span></code> (nor seek to). Most especially it currently lacks the UMI based error-correction functionality of <code class="docutils literal notranslate"><span class="pre">Decombinator</span></code>. Instead it is intended to supply a flexible framework of adaptable TCR annotation-related functions that can be tweaked for dataset-specific applications, including a few which I don’t feel are necessarily well catered to with existing tools.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-right" title="Installation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Jamie Heather.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

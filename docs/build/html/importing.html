@@ -1,0 +1,160 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Importing autoDCR to other scripts &mdash; autoDCR 0.3.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e259d695"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Annotating TCR protein sequences" href="tcrproteins.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            autoDCR
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="referencedata.html">Generating reference data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="annotate.html">FASTA/Q V/J/CDR3 annotation with autoDCR annotate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcrtranscripts.html">Analysing full TCR transcripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Annotate single TCRs in the command line with autoDCR cli</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcrproteins.html">Annotating TCR protein sequences</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Importing autoDCR to other scripts</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">autoDCR</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Importing autoDCR to other scripts</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/importing.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="importing-autodcr-to-other-scripts">
+<h1>Importing autoDCR to other scripts<a class="headerlink" href="#importing-autodcr-to-other-scripts" title="Link to this heading"></a></h1>
+<p>If an application were to require V/J/CDR3 (and potentially even constant and/or leader sequence) annotation, there are various ways to import <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> functionality into other Python scripts. Perhaps the simplest way is to import the function which underlies <code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">cli</span></code>, as this provides a versatile interface to perform different kinds of TCR annotation. Assuming reference data has been suitably processed, users can do the following:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Import the necessary bits and bobs</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autoDCRscripts</span><span class="w"> </span><span class="kn">import</span> <span class="n">commandline</span> <span class="k">as</span> <span class="n">cli</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">autoDCRscripts.main</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_dir</span>
+
+<span class="c1"># Let&#39;s pick a couple of TCR sequences</span>
+<span class="n">in_tcr_nt</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;GGGTTTTTCTGCTGTGGGTACGTGAGCAGGAAACATGGAGAAGAATCCTTTGGCAGCCCCATTACTAATCCTCTGGTTTCATCTTGACTGCGTGAGCAGCATACT&#39;</span>
+             <span class="s1">&#39;GAACGTGGAACAAAGTCCTCAGTCACTGCATGTTCAGGAGGGAGACAGCACCAATTTCACCTGCAGCTTCCCTTCCAGCAATTTTTATGCCTTACACTGGTCCAG&#39;</span>
+             <span class="s1">&#39;ATGGGAAACTGCAAAAAGCCCCGAGGCCTTGTTTGTAATGACTTTAAATGGGGATGAAAAGAAGAAAGGACGAATAAGTGCCACTCTTAATACCAAGGAGGGTTA&#39;</span>
+             <span class="s1">&#39;CAGCTATTTGTACATCAAAGGATCCCAGCCTGAAGACTCAGCCACATACCTCTGTGCCTTTACTTATGGAGGAAGCCAAGGAAATCTCATCTTTGGAAAAGGCAC&#39;</span>
+             <span class="s1">&#39;TAAACTCTCTGTTAAACCAAATATCCAGAACCCTGACCCTGACGTG&#39;</span><span class="p">)</span>
+<span class="n">in_tcr_aa</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;DSGVTQTPKHLITATGQRVTLRCSPRSGDLSVYWYQQSLDQGLQFLIQYYNGEERAKGNIL&#39;</span>
+             <span class="s1">&#39;ERFSAQQFPDLHSELNLSSLELGDSALYFCASSARSGELFFGEGSRLTVLEDLKNVFPPL&#39;</span><span class="p">)</span>
+
+<span class="c1"># Then run the annotation command on them</span>
+<span class="n">out_tcr_nt</span> <span class="o">=</span> <span class="n">cli</span><span class="o">.</span><span class="n">cli_annotate</span><span class="p">(</span><span class="n">tcr</span><span class="o">=</span><span class="n">in_tcr_nt</span><span class="p">,</span> <span class="n">dcr_mode</span><span class="o">=</span><span class="s1">&#39;full&#39;</span><span class="p">,</span> <span class="n">output_mode</span><span class="o">=</span><span class="s1">&#39;return&#39;</span><span class="p">,</span> <span class="n">tcr_name</span><span class="o">=</span><span class="s1">&#39;some-cool-nt-tcr&#39;</span><span class="p">,</span>
+                              <span class="n">species</span><span class="o">=</span><span class="s1">&#39;HUMAN&#39;</span><span class="p">,</span> <span class="n">loci</span><span class="o">=</span><span class="s1">&#39;AB&#39;</span><span class="p">,</span> <span class="n">orientation</span><span class="o">=</span><span class="s1">&#39;forward&#39;</span><span class="p">,</span> <span class="n">barcoding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">protein</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                              <span class="n">genbank_mode</span><span class="o">=</span><span class="s1">&#39;read&#39;</span><span class="p">,</span> <span class="n">deletion_limit</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">cdr3_limit</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">data_dir</span><span class="o">=</span><span class="n">data_dir</span><span class="p">)</span>
+
+<span class="n">out_tcr_aa</span> <span class="o">=</span> <span class="n">cli</span><span class="o">.</span><span class="n">cli_annotate</span><span class="p">(</span><span class="n">in_tcr_aa</span><span class="p">,</span> <span class="s1">&#39;vjcdr3&#39;</span><span class="p">,</span> <span class="s1">&#39;return&#39;</span><span class="p">,</span> <span class="s1">&#39;tcr&#39;</span><span class="p">,</span> <span class="s1">&#39;HUMAN&#39;</span><span class="p">,</span> <span class="s1">&#39;AB&#39;</span><span class="p">,</span> <span class="s1">&#39;forward&#39;</span><span class="p">,</span>
+                              <span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;read&#39;</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="n">data_dir</span><span class="p">)</span>
+
+
+<span class="c1"># The different components of the detected rearrangements</span>
+<span class="n">out_tcr_nt</span><span class="p">[</span><span class="s1">&#39;v_call&#39;</span><span class="p">]</span>
+<span class="s1">&#39;TRAV24*01&#39;</span>
+<span class="n">out_tcr_nt</span><span class="p">[</span><span class="s1">&#39;j_call&#39;</span><span class="p">]</span>
+<span class="s1">&#39;TRAJ42*01&#39;</span>
+<span class="n">out_tcr_nt</span><span class="p">[</span><span class="s1">&#39;l_call&#39;</span><span class="p">]</span>
+<span class="s1">&#39;TRAV24*01&#39;</span>
+<span class="n">out_tcr_nt</span><span class="p">[</span><span class="s1">&#39;junction_aa&#39;</span><span class="p">]</span>
+<span class="s1">&#39;CAFTYGGSQGNLIF&#39;</span>
+
+<span class="n">out_tcr_aa</span><span class="p">[</span><span class="s1">&#39;v_call&#39;</span><span class="p">]</span>
+<span class="s1">&#39;TRBV9*01,TRBV9*03&#39;</span>
+<span class="n">out_tcr_aa</span><span class="p">[</span><span class="s1">&#39;j_call&#39;</span><span class="p">]</span>
+<span class="s1">&#39;TRBJ2-2*01&#39;</span>
+<span class="n">out_tcr_aa</span><span class="p">[</span><span class="s1">&#39;junction_aa&#39;</span><span class="p">]</span>
+<span class="s1">&#39;CASSARSGELFF&#39;</span>
+</pre></div>
+</div>
+<section id="things-to-note">
+<h2>Things to note<a class="headerlink" href="#things-to-note" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>The above approach makes use of an additional <code class="docutils literal notranslate"><span class="pre">dcr_mode</span></code>, ‘return’. This is somewhat analogous to the ‘json’ mode, but instead of saving the output dictionary to a file, it returns it.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="tcrproteins.html" class="btn btn-neutral float-left" title="Annotating TCR protein sequences" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Jamie Heather.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

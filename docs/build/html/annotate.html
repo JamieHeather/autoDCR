@@ -1,0 +1,149 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FASTA/Q V/J/CDR3 annotation with autoDCR annotate &mdash; autoDCR 0.3.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e259d695"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Analysing full TCR transcripts" href="tcrtranscripts.html" />
+    <link rel="prev" title="Generating reference data" href="referencedata.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            autoDCR
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="referencedata.html">Generating reference data</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">FASTA/Q V/J/CDR3 annotation with autoDCR annotate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcrtranscripts.html">Analysing full TCR transcripts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Annotate single TCRs in the command line with autoDCR cli</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcrproteins.html">Annotating TCR protein sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="importing.html">Importing autoDCR to other scripts</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">autoDCR</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">FASTA/Q V/J/CDR3 annotation with autoDCR annotate</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/annotate.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="fasta-q-v-j-cdr3-annotation-with-autodcr-annotate">
+<h1>FASTA/Q V/J/CDR3 annotation with autoDCR annotate<a class="headerlink" href="#fasta-q-v-j-cdr3-annotation-with-autodcr-annotate" title="Link to this heading"></a></h1>
+<p>At its simplest, <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> can be used like any other TCR annotation tool via the <code class="docutils literal notranslate"><span class="pre">annotate</span></code> command. When pointed to a particular FASTA or FASTQ file containing rearranged TCR DNA sequences it will loop through and detect V/J gene usage, describe CDR3 sequences that join them, and look for different sequence features from which we infer the productivity of the rearrangement (i.e. is it expected to be successfully transcribed and translated).</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>autoDCR<span class="w"> </span>annotate<span class="w"> </span>-in<span class="w"> </span>some-file.fastq
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> then produces a tab separated file detailing the rearrangements it detected in the <a class="reference external" href="https://docs.airr-community.org">AIRR Community standard scheme</a> as proposed in <a class="reference external" href="https://doi.org/10.3389/fimmu.2018.02206">Vander Heiden et al., 2018</a>, supplemented with some additional custom fields.</p>
+<section id="basic-parameters">
+<h2>Basic parameters<a class="headerlink" href="#basic-parameters" title="Link to this heading"></a></h2>
+<p>There are a few optional command line arguments that users can supply to override the default parameters. The basic parameters include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">-o</span> <span class="pre">/</span> <span class="pre">--out_path</span></code>: specify a directory or file name to output the results to. Note that the default is the name of the supplied fastq file (up to the first ‘.’ character) + ‘.tsv’, written to whatever directory <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> is being run in.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-or</span> <span class="pre">/</span> <span class="pre">--orientation</span></code>: specify the orientation of the DNA to search for TCRs in, choosing from forward/reverse/both (or f/r/b), default = both. Can speed up the assignation process if a particular orientation is expected due to the library preparation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-sp</span> <span class="pre">/</span> <span class="pre">--species</span></code>: name of the species (or at least the name of the species directory, see the <a class="reference internal" href="referencedata.html#generating-reference-data"><span class="std std-ref">Generating reference data</span></a> section), used to identify the appropriate .fasta/.tags/.translate files.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-dl</span> <span class="pre">/</span> <span class="pre">--deletion_limit</span></code>: upper limit of TCR V/J gene deletions to allow in a functional recombination. Default = 30.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-dt</span> <span class="pre">/</span> <span class="pre">--dont_tranlate</span></code>: toggle off automatic translation and CDR3 detection.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-dz</span> <span class="pre">/</span> <span class="pre">--dont_gzip</span></code>: toggle off automatic gzip compression of produced results.</p></li>
+</ul>
+</section>
+<section id="advanced-options">
+<h2>Advanced options<a class="headerlink" href="#advanced-options" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> is currently capable of several additional annotation tasks. For reference, see their specific sections:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="tcrtranscripts.html#analysing-full-tcr-transcripts"><span class="std std-ref">Analysing full TCR transcripts</span></a></p></li>
+<li><p><a class="reference internal" href="tcrproteins.html#annotating-tcr-protein-sequences"><span class="std std-ref">Annotating TCR protein sequences</span></a></p></li>
+<li><p><a class="reference internal" href="cli.html#annotate-single-tcrs-in-the-command-line-with-autodcr-cli"><span class="std std-ref">Annotate single TCRs in the command line with autoDCR cli</span></a></p></li>
+</ul>
+</section>
+<section id="things-to-note">
+<h2>Things to note<a class="headerlink" href="#things-to-note" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> aims to be as precise in its reporting of TCRs as possible, therefore it will list the smallest list of alleles that could have contributed to a given recombination as possible, separated by columns.</p></li>
+<li><p>TCRs are deemed to be ‘non-productive’ if they contain stop codons, don’t have in-frame variable and constant domains, and/or lack certain conserved motifs. While these rearrangements might be deemed less interesting, they are useful for some applications, and so <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> will still try to determine their CDR3 junction. Ordinarily <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> determines correct frames and conserved motifs using both the V and J genes, but in cases where there are detected stop codons it will only do in reference to the conserved J region FGXG motif. If it finds one, it will then just look for the nearest upstream V region Cys residue. In these circumstances it will report two comma-separated full inferred translations in the <code class="docutils literal notranslate"><span class="pre">inferred_full_aa</span></code> column: one assuming the V gene is in-frame, the other assuming the J gene is.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> reports FASTQ quality scores along with the original reads. When provided with a FASTA file instead it simply generates a length-matched dummy quality score, consisting of spaces.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="referencedata.html" class="btn btn-neutral float-left" title="Generating reference data" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tcrtranscripts.html" class="btn btn-neutral float-right" title="Analysing full TCR transcripts" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Jamie Heather.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

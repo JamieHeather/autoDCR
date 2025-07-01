@@ -1,0 +1,181 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Annotate single TCRs in the command line with autoDCR cli &mdash; autoDCR 0.3.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=e259d695"></script>
+      <script src="_static/doctools.js?v=888ff710"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Annotating TCR protein sequences" href="tcrproteins.html" />
+    <link rel="prev" title="Analysing full TCR transcripts" href="tcrtranscripts.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            autoDCR
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="referencedata.html">Generating reference data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="annotate.html">FASTA/Q V/J/CDR3 annotation with autoDCR annotate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcrtranscripts.html">Analysing full TCR transcripts</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Annotate single TCRs in the command line with autoDCR cli</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tcrproteins.html">Annotating TCR protein sequences</a></li>
+<li class="toctree-l1"><a class="reference internal" href="importing.html">Importing autoDCR to other scripts</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">autoDCR</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Annotate single TCRs in the command line with autoDCR cli</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/cli.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="annotate-single-tcrs-in-the-command-line-with-autodcr-cli">
+<h1>Annotate single TCRs in the command line with autoDCR cli<a class="headerlink" href="#annotate-single-tcrs-in-the-command-line-with-autodcr-cli" title="Link to this heading"></a></h1>
+<p>Often when performing different TCR related analyses I’ve noticed that I need to quickly analyse one or two sequences, for which standard FASTA/FASTQ annotation pipelines (like <code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">annotate</span></code>, covered in the <a class="reference internal" href="annotate.html#fasta-q-v-j-cdr3-annotation-with-autodcr-annotate"><span class="std std-ref">FASTA/Q V/J/CDR3 annotation with autoDCR annotate</span></a> section) can be unwieldy. Therefore <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> has a command line interface option, which effectively allows you to just do a quick check of a potential rearranged TCR sequence. It is run using the <code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">cli</span></code> subcommand.</p>
+<p>Note that by default <code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">cli</span></code> attempts to search in ‘<code class="docutils literal notranslate"><span class="pre">full</span></code>’ mode, rather than the ‘<code class="docutils literal notranslate"><span class="pre">vjcdr3</span></code>’ mode that is default for the <code class="docutils literal notranslate"><span class="pre">annotate</span></code> subcommand: see the discussion of the <code class="docutils literal notranslate"><span class="pre">dcr_mode</span></code> parameter in the <a class="reference internal" href="tcrtranscripts.html#analysing-full-tcr-transcripts"><span class="std std-ref">Analysing full TCR transcripts</span></a> section.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>autoDCR<span class="w"> </span>cli<span class="w"> </span><span class="o">[</span>some-TCR-sequence<span class="o">]</span><span class="w"> </span><span class="o">[</span>-X<span class="w"> </span>-Y<span class="w"> </span>-Z<span class="w"> </span>other<span class="w"> </span>parameters<span class="o">]</span>
+
+<span class="c1"># E.g. let&#39;s test a few examples using a long read TCR</span>
+<span class="c1"># Note that I&#39;m using a bash variable to hold it here for readability</span>
+<span class="c1"># Pasting the TCR in directly also works</span>
+<span class="nv">tcr</span><span class="o">=</span><span class="s2">&quot;TACCGGCTATCTGTACGGGGACAGATACAGAAGACCCCTCCGTCATGCAGCATCTGCCATGAGCATCGGCCTCCTGTGCTGTGCAGCCTTGTCTCTCCTGTGGGCAGGTCCAGTGAATGCTGGTGTCACTCAGACCCCAAAATTCCAGGTCCTGAAGACAGGACAGAGCATGACACTGCAGTGTGCCCAGGATATGAACCATGAATACATGTCCTGGTATCGACAAGACCCAGGCATGGGGCTGAGGCTGATTCATTACTCAGTTGGTGCTGGTATCACTGACCAAGGAGAAGTCCCCAATGGCTACAATGTCTCCAGATCAACCACAGAGGATTTCCCGCTCAGGCTGCTGTCGGCTGCTCCCTCCCAGACATCTGTGTACTTCTGTGCCAGCAGACTGGACAGGGAGTACGAGCAGTACTTCGGGCCGGGCACCAGGCTCACGGTCACAGAGGACCTGAAAAACGTGTTCCCCTCT&quot;</span>
+
+<span class="c1"># Use the default &#39;full&#39; autoDCR mode to analyse a long TCR read</span>
+autoDCR<span class="w"> </span>cli<span class="w"> </span><span class="nv">$tcr</span>
+
+TCR<span class="w"> </span>regions<span class="w"> </span>detected!
+<span class="w">        </span>orientation<span class="w">     </span>forward
+<span class="w">        </span>productive<span class="w">      </span>yes
+<span class="w">        </span>v_call<span class="w">  </span>TRBV6-5*01
+<span class="w">        </span>j_call<span class="w">  </span>TRBJ2-7*01
+<span class="w">        </span>junction_aa<span class="w">     </span>CASRLDREYEQYF
+<span class="w">        </span>l_call<span class="w">  </span>TRBV6-5*01
+<span class="w">        </span>c_call<span class="w">  </span>TRBC2*01,TRBC2*02,TRBC2*03
+
+<span class="c1"># Analyse the same TCR sequence using the regular &#39;vjcdr3&#39; mode</span>
+autoDCR<span class="w"> </span>cli<span class="w"> </span><span class="nv">$tcr</span><span class="w"> </span>-m<span class="w"> </span>vjcdr3
+
+TCR<span class="w"> </span>regions<span class="w"> </span>detected!
+<span class="w">        </span>orientation<span class="w">     </span>forward
+<span class="w">        </span>productive<span class="w">      </span>yes
+<span class="w">        </span>v_call<span class="w">  </span>TRBV6-5*01
+<span class="w">        </span>j_call<span class="w">  </span>TRBJ2-7*01
+<span class="w">        </span>junction_aa<span class="w">     </span>CASRLDREYEQYF
+</pre></div>
+</div>
+<section id="cli-output-modes">
+<h2>CLI output modes<a class="headerlink" href="#cli-output-modes" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">cli</span></code> has some additional ways to report the annotations of the provided read, beyond just printing to the terminal, specified via the <code class="docutils literal notranslate"><span class="pre">--output_mode</span> <span class="pre">/</span> <span class="pre">-om</span></code> flag (default = <code class="docutils literal notranslate"><span class="pre">stdout</span></code>).</p>
+<section id="json-output">
+<h3>JSON output<a class="headerlink" href="#json-output" title="Link to this heading"></a></h3>
+<p>The most information-rich option is to use <code class="docutils literal notranslate"><span class="pre">-om</span> <span class="pre">json</span></code>, which saves the entirety of the dictionary used internally by <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> for assessing each sequence, including all TCR tag matches and inferred properties, which may be more information than is useful for many applications.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>autoDCR cli $tcr -om json -n my-cool-tcr
+</pre></div>
+</div>
+</section>
+<section id="genbank-output-modes">
+<h3>GenBank output modes<a class="headerlink" href="#genbank-output-modes" title="Link to this heading"></a></h3>
+<p>More useful to the average user is the ability to save a GenBank formatted summary file (produced using the functions developed for <code class="docutils literal notranslate"><span class="pre">stitchr</span></code>), which can then be viewed with a standard DNA browsing tool like SnapGene Viewer or ApE. See the following examples which use the <code class="docutils literal notranslate"><span class="pre">--genbank_mode</span> <span class="pre">/</span> <span class="pre">-gm</span></code> flag to specify different ways to generate a GenBank file (which also uses the <code class="docutils literal notranslate"><span class="pre">--tcr_name</span> <span class="pre">/</span> <span class="pre">-n</span></code> flag to provide output file names):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>autoDCR cli $tcr -om json -n my-cool-tcr
+autoDCR cli $tcr -om gb -n my-cool-tcr-inf -gm inferred
+autoDCR cli $tcr -om gb -n my-cool-tcr-tags -gm tags
+</pre></div>
+</div>
+<p>Then compare the output of the GenBank files produced in the image below, screenshot from SnapGene Viewer.</p>
+<ul class="simple">
+<li><p>The first option uses the default ‘read’ output mode, which just annotates the read as provided with the detected regions.</p></li>
+<li><p>The second ‘inferred’ option instead annotated the ‘full inferred’ TCR produced by <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> during its analysis (which is more useful in shorter read TCR sequences).</p></li>
+<li><p>The final option shows the results of ‘tags’, in which the individual location of matched tags are recorded, alongside the full regions. This can be particularly useful for investigating strange TCR reads (and is used a lot when developing novel <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> functions).</p></li>
+</ul>
+<img alt="Three snapshots of SnapGene Viewer views of different sequence files produced using the autoDCR cli GenBank output mode. Top-to-bottom: default 'read' mode, 'inferred' mode, and 'tags' mode." class="align-center" src="_images/cli-examples.png" />
+</section>
+</section>
+<section id="things-to-note">
+<h2>Things to note<a class="headerlink" href="#things-to-note" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>When analysing a single TCR, and using an output mode that produces a file, providing a name via the <code class="docutils literal notranslate"><span class="pre">--tcr_name</span> <span class="pre">/</span> <span class="pre">-n</span></code> flag is not required. However if you don’t use it <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> will automatically generate a file name based on the rearrangement detected. E.g. the products of the example TCR read above would be titled <code class="docutils literal notranslate"><span class="pre">autoDCR-TCR_TRBV6-5-01|V_TRBJ2-7-01|J_CASRLDREYEQYF.[suffix]</span></code></p></li>
+<li><p>Given their length (and frequently being sequenced at the start of an Illumina read 2, with correspondingly lower read quality) leader regions are often not able to be unambiguously determined. Similarly many molecular protocols reverse transcribe and/or amplify from the 5’ end of the constant region, and thus almost none of the allele-distinguishing polymorphisms are sequenced. Such regions will therefore (where possible) be reported at the gene level, or just as ‘leader’ in output GenBank files. However if an unexpected leader is detected (i.e. not the sequence associated with that V-REGION) it will be labelled in full.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="tcrtranscripts.html" class="btn btn-neutral float-left" title="Analysing full TCR transcripts" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tcrproteins.html" class="btn btn-neutral float-right" title="Annotating TCR protein sequences" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Jamie Heather.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
