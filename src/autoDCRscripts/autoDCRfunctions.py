@@ -6,6 +6,7 @@ import os
 import sys
 import textwrap
 import collections as coll
+import pandas as pd
 from acora import AcoraBuilder
 from time import time
 
@@ -25,6 +26,48 @@ def get_gene(string):
     :return: the IMGT gene/allele
     """
     return string.split('|')[1]
+
+
+def imgt_header_builder(accession=' ', allele_id=' ', species=' ', functionality=' ', imgt_label=' ', coordinates=' ',
+                        length_nt=' ', codon_start=' ', five_prime_nt=' ', three_prime_nt=' ', erroneous_nt=' ',
+                        length_aa=' ', total_length=' ', partial=' ', orientation=' '):
+    """
+    See IMGT documentation (https://www.imgt.org/download/GENE-DB/README.txt) for an explanation of the fields
+    :return: a pipe-delimited IMGT-style str as per an IMGT FASTA header
+    """
+    return '|'.join([accession, allele_id, species, functionality, imgt_label,
+                coordinates, length_nt, codon_start, five_prime_nt, three_prime_nt, erroneous_nt,
+                length_aa, total_length, partial, orientation]) + '|'
+
+
+def imgt_header_check(fasta_header):
+    """
+    :param fasta_header: str of a FASTA header that might or might not be in IMGT format
+    :return: bool, whether or not this header seems to fit the IMGT format, and list of said bits (or null)
+    """
+
+    bits = fasta_header.split('|')
+    imgt = False
+    if isinstance(bits, list) and len(bits) >= 16:
+        if bits[1][:2] == 'TR' and bits[3].replace('(', '').replace(')', '').replace('[', '').replace(']', '') \
+                in ['F', 'ORF', 'P']:
+            imgt = True
+
+    return imgt, bits
+
+
+def loci_details(gene_id):
+    """
+    :param gene_id: str, gene ID in TRxy*ZZ format
+    :return: list of relevant loci, and the region
+    """
+    l = [gene_id[2]]
+    r = gene_id[3]
+    if l == ['D'] and r == 'V':
+        l.append('A')
+    elif l == ['A'] and '/DV' in gene_id:
+        l.append('D')
+    return l, r
 
 
 def build_trie(sequence_list):
@@ -62,7 +105,12 @@ def opener(file_name, open_mode):
 
 def import_tcr_info(species, in_loci, in_regions, mol_type, data_dir):
     """
-    # TODO docstring
+    :param species: str, species identifier  # TODO update to name of ID?
+    :param in_loci: list of str (single characters), denoting which loci to look for (A/B/G/D)
+    :param in_regions: str (one of 2x 2 sorted digits), detailing regions to consider ('JV' or 'CL')
+    :param mol_type: str (one of 2x), covering molecule type ('nt' or 'aa')
+    :param data_dir: str detailing path to the autoDCR data directory
+    :return: dict of germline reference data for the requested species for use in annotation
     """
 
     out_data = {'genes': {}, 'tag_genes': {}, 'tag_order': {},
@@ -72,7 +120,7 @@ def import_tcr_info(species, in_loci, in_regions, mol_type, data_dir):
     species_dir = os.path.join(data_dir, species)
     if not os.path.exists(species_dir):
         raise IOError(f"Requested species directory ('{species.upper()}') absent from data directory:"
-                      f" run 'autoDCRscripts refs' and try again.")
+                      f" run 'autoDCR refs' and try again.")
 
     file_prefix = format_ref_prefixes(in_loci, in_regions)
     if mol_type == 'aa':
@@ -82,8 +130,11 @@ def import_tcr_info(species, in_loci, in_regions, mol_type, data_dir):
     matching_files = [x for x in os.listdir(species_dir) if x in expected_files]
 
     if len(matching_files) != len(expected_files):
-        raise IOError(f"Insufficient reference data for '{in_loci}' in species-specific data directory ({species_dir}).\n"
-                      f"Run 'autoDCRscripts refs' and try again.")
+        raise IOError(f"Insufficient reference data for requested loci ('{'/'.join(in_loci)}') in data directory "
+                      f"({species_dir}).\nMissing file(s): "
+                      f"{','.join([x for x in expected_files if x not in matching_files])}.\n"
+                      f"Run 'autoDCR refs' with the appropriate options "
+                      f"(assuming necessary data is present) and try again.")
 
     out_data['data_prefix'] = os.path.join(species_dir, file_prefix)
     # Get full gene sequences
@@ -125,12 +176,10 @@ def import_tcr_info(species, in_loci, in_regions, mol_type, data_dir):
 
 def import_translate_info(ref_data):
     """
-    # TODO fix docstring
-    Establishes global dictionaries which contain all the information required for translating TCRs:
-    - trans_pos : Position of conserved CDR3 junction defining residues { gene_name: index }
-    - trans_res : Identity of conserved CDR3 junction defining residues { gene_name: residue_character }
-    :param input_arguments: CLI input arguments
-    :return: Nothing, all dictionaries are set up as global objects
+    :param ref_data: dict of germline reference data
+    :return: ref_data dict, with updated fields relating to inferred translation parameters, being:
+        - trans_pos : Position of conserved CDR3 junction defining residues { gene_name: index }
+        - trans_res : Identity of conserved CDR3 junction defining residues { gene_name: residue_character }
     """
 
     ref_data['trans_pos'] = {}
@@ -138,15 +187,18 @@ def import_translate_info(ref_data):
     if not os.path.exists(ref_data['data_prefix'] + '.translate'):
         raise IOError(f"Missing .translate file in species-specific data directory "
                       f"({ref_data['data_prefix'] + '.translate'}).\n"
-                      f"Run 'autoDCRscripts refs' and try again.")
+                      f"Run 'autoDCR refs' and try again.")
 
     with open(ref_data['data_prefix'] + '.translate', 'r') as in_file:
         for line in in_file:
             bits = line.rstrip().split('\t')
-            ref_data['trans_pos'][bits[0]] = int(bits[1])
-            ref_data['trans_res'][bits[0]] = bits[2]
+            if len(bits) > 1:
+                ref_data['trans_pos'][bits[0]] = int(bits[1])
+                ref_data['trans_res'][bits[0]] = bits[2]
+            # TODO something for cases where a motif can't be found?
 
     return ref_data
+
 
 def readfq(fastx_file):
     """
@@ -205,15 +257,14 @@ def rev_comp(seq):
 
 def sort_read_bits(whole_read, whole_qual, barcode_details):
     """
-    # TODO fix docstring
-    :param whole_read: The entire read, from start to finish
-    :param whole_qual: The quality scores of that entire reads
-    :param input_arguments: The argparse input arguments, to determine whether/how to chop up the read
-    :return: 4 str: the TCR-containing portion of the read, it's quality, and the barcode-containing read/its quality
+    :param whole_read: str of whole provided potentially-TCR containing read
+    :param whole_qual: str of complete quality score sequence, if applicable
+    :param barcode_details: dict of barcode details, if specified
+    :return: 4x str: the TCR-containing portion of the read, it's quality, and the barcode-containing read/its quality
     """
 
     if barcode_details:
-        # TODO all this needs updating
+        # TODO all this needs updating, whole function currently a placeholder
         pass
         # tcr_read = whole_read[input_arguments['bclength']:].upper()
         # tcr_qual = whole_qual[input_arguments['bclength']:]
@@ -223,8 +274,13 @@ def sort_read_bits(whole_read, whole_qual, barcode_details):
     else:
         return whole_read.upper(), whole_qual, '', ''
 
+
 def tidy_output(output_dict, header_list):
-    # TODO docstr
+    """
+    :param output_dict: dict containing the fields of a given read's rearrangement
+    :param header_list: list of str detailing the fields to be present in the final output TSV
+    :return: modified output_dict, with ambiguous, temporary, and missing fields corrected
+    """
 
     # Remove the '|X' disambiguation strings from the ends of gene calls
     for field in [x for x in output_dict if x.endswith('_call')]:
@@ -427,7 +483,7 @@ def find_cdr3(tcr, ref_data, parameters):
     """
     :param tcr: dict of TCR featured detected in a given read
     :param ref_data: dict of reference data
-    :param parameters: dict of autoDCRscripts-related parameters
+    :param parameters: dict of autoDCR-related parameters
     :return: Same tcr dict, with additional corresponding translated/CDR3 properties (if found)
     """
 
@@ -457,8 +513,14 @@ def find_cdr3(tcr, ref_data, parameters):
         elif parameters['mol_type'] == 'aa':
             tcr['inferred_full_aa'] = full_inferred
 
-        tcr['junction_aa'] = tcr['inferred_full_aa'][ref_data['trans_pos'][translate_v]:
-                                                     ref_data['trans_pos'][translate_j] + 1]
+        # Extract the junction sequence if we can
+        if translate_v in ref_data['trans_pos'] and translate_j in ref_data['trans_pos']:
+            tcr['junction_aa'] = tcr['inferred_full_aa'][ref_data['trans_pos'][translate_v]:
+                                                         ref_data['trans_pos'][translate_j] + 1]
+            tcr['missing_translation_details'] = 'F'
+        else:
+            tcr['junction_aa'] = ''
+            tcr['missing_translation_details'] = 'T'
 
         # Assume productivity, and remove it as applicable, checking for the various required parameters
         # Note that it's possible for multiple different reasons to be non-productive to be true, in different combos
@@ -537,13 +599,17 @@ def find_cdr3(tcr, ref_data, parameters):
 
 def attempt_salvage_irregular_cdr3s(tcr_dict, ref_data, v_translate, j_translate):
     """
-    # TODO fix docstr
     Try to find CDR3s in irregular rearrangements (particularly necessary when using irregular V-REGION references)
-    :param tcr_dict: Dictionary describing rearrangement under consideration
+    :param tcr_dict: dict describing rearrangement under consideration
+    :param ref_data: dict containing the relevant germline reference data
     :param v_translate: str ID of V gene being used for translation purposes (maybe differ if >1 detected)
     :param j_translate: str ID of V gene being used for translation purposes (maybe differ if >1 detected)
-    :return: tcr_dict, hopefully updated with any CDR3s the regular assumptions failed to catch now annotated
+    :return: updated tcr_dict, hopefully populated with any CDR3s the regular assumptions failed to catch now annotated
     """
+
+    if tcr_dict['missing_translation_details'] == 'T':
+        return tcr_dict
+
     potential_frames = []
     potential_translations = []
 
@@ -582,10 +648,10 @@ def attempt_salvage_irregular_cdr3s(tcr_dict, ref_data, v_translate, j_translate
 
 def get_deletions(results_dict, ref_data, parameters):
     """
-    # TODO fix docstring
-    :param results_dict: The dictionary containing all of the TCR details discovered so far
-    :param input_arguments: The argparse input arguments
-    :return: the same results_dict, with additional information relating to the deletions discovered in the germline V/J
+    :param results_dict: dict containing TCR details inferred thus far for this read
+    :param ref_data: dict containing provided germline reference data
+    :param parameters: dict containing specified parameters for this annotation
+    :return: results_dict, updated with additional information re: germline V|J deletion information
     """
     # TODO filter out cases where end of gene is beyond the limits of the read
 
@@ -647,7 +713,13 @@ def get_deletions(results_dict, ref_data, parameters):
 
 
 def populate_reads(sequence_read, sequence_qual, requested_orientation):
-    # TODO docstr
+    """
+    :param sequence_read: str of input DNA read
+    :param sequence_qual: str of input DNA sequencing read's quality scores
+    :param requested_orientation: str describing orientation of input read's TCR
+    :return: list of dicts formalising the input of suitably-oriented strings for processing
+    """
+
     out_reads = []
     request = requested_orientation.lower()
     if request in ['both', 'either', 'b']:
@@ -662,9 +734,15 @@ def populate_reads(sequence_read, sequence_qual, requested_orientation):
                       f"Please specify one of the three options: forward/reverse/both - or f/r/b.")
 
 
-
 def dcr(read, quality, ref_data, parameters, tsv_headers):
-    # TODO docstr
+    """
+    :param read: str of potentially rearranged-TCR-containing read
+    :param quality: str of quality scores (if available)
+    :param ref_data: dict containing germline reference info
+    :param parameters: dict containing various parameters relating to requested autoDCR run
+    :param tsv_headers: list of str, detailing the required headers for the output TCR file
+    :return: 'tag_hits' dict, detailing all inferred TCR features from said read
+    """
 
     # Depending on the mode, perform different combinations of TCR processing tasks
     # The shared functionality is the application of an Aho Corasick trie to search for TCR sub-sequences
@@ -673,7 +751,6 @@ def dcr(read, quality, ref_data, parameters, tsv_headers):
 
     for strand in strands:
         tag_hits = find_tag_hits(strand['read'], ref_data)
-        # print(1, tag_hits)  # TODO rm
         if not tag_hits or tag_hits is None:
             continue
 
@@ -724,28 +801,42 @@ def dcr(read, quality, ref_data, parameters, tsv_headers):
 
 
 def get_3p_seq_offset(full_seq, ref_dat, gene, region, last_tag):
-    # TODO docstr
-    # Find out how much farther 3' after the terminal tag match a region continues / whether it goes further
+    """
+    :param full_seq: str of the full sequence of the TCR read
+    :param ref_dat: dict of germline reference set details
+    :param gene: str of 'gene*allele' for TCR gene in question
+    :param region: single character string, detailing region in question, following the pipe char in reference FASTA
+    :param last_tag: int index of the 3'-most tag match in the read
+    :return: 2x str, being 1) the remaining seq of the specified gene after the last matched tag, and
+                           2) the remaining seq of the read after the end of that seq (i.e. after the matching region)
+    """
 
+    # Find out how much farther 3' after the terminal tag match a region continues / whether it goes further
     tag_len = len(last_tag[0])
     full_ref_seq = ref_dat['genes'][gene + '|' + region.upper()]
     end_ref_seq = full_ref_seq[full_ref_seq.index(last_tag[0]) + tag_len:]
     end_seq = full_seq[last_tag[1] + tag_len:]
 
     shared_prefix = os.path.commonprefix([end_seq, end_ref_seq])
-
     return shared_prefix, end_seq[len(shared_prefix):]
 
 
 def eg_gene(gene_str):
-    # TODO docstr
+    """
+    :param gene_str: str of gene*allele call(s)
+    :return: str of the first gene*allele call if input was comma-delimited list
+    """
     # Pick the first example gene in an ambiguous list for various purposes
     return gene_str.split(',')[0]
 
 
-
 def determine_gene_boundaries(tcr_dict, vj_refdat, lc_refdat):
-    # todo docstr
+    """
+    :param tcr_dict: dict covering detected TCR details thus far for the read
+    :param vj_refdat: dict of germline data covering V/J regions
+    :param lc_refdat: dict of germline data covering L/C regions
+    :return: tcr_dat dict, populated with additional 'x_label' fields describing the limits of detected regions
+    """
 
     ref_dict = {'v': vj_refdat, 'j': vj_refdat,
                 'l': lc_refdat, 'c': lc_refdat}
@@ -761,8 +852,6 @@ def determine_gene_boundaries(tcr_dict, vj_refdat, lc_refdat):
             start = tcr_dict[r + '_matching_tags'][0][1]
             end = (tcr_dict[r + '_matching_tags'][-1][1] +
                    len(tcr_dict[r + '_matching_tags'][-1][0]))
-
-            # get_3p_seq_offset(full_seq, ref_dat, gene, region, last_tag)  # TODO here
 
             # Fill the sequence between the last tag and the end of the region (tags being tiled from 5'-3')
             r_3p, rest_3p = get_3p_seq_offset(tcr_dict['sequence'], ref_dict[r], annotations[r],
@@ -805,7 +894,6 @@ def determine_gene_boundaries(tcr_dict, vj_refdat, lc_refdat):
                 if not ref_dict[r]['genes'][annotations[r] + '|' + r.upper()].endswith(
                         tcr_dict[r + '_seq'][-20:]):
                     label += ' (partial in 3\')'
-            # TODO uncomment and make use of v/j jumps
 
             tcr_dict[r + '_label'] = label
 
@@ -813,7 +901,15 @@ def determine_gene_boundaries(tcr_dict, vj_refdat, lc_refdat):
 
 
 def discover_genes(read, read_qual, vj_data, lc_data, dcr_parameters, headers):
-    # TODO docstring
+    """
+    :param read: str of potentially-TCR containing read
+    :param read_qual: str of matched per-base quality scores (if available)
+    :param vj_data: dict of reference data covering V and J regions
+    :param lc_data: dict of reference data covering L and C regions
+    :param dcr_parameters: dict of parameters supplied to autodcr
+    :param headers: list of str of headers for the eventual output TSV file
+    :return: dict produced by dcr() detailing TCR details, if sufficiently complete TCR detected
+    """
 
     tag_search = dcr(read, read_qual, vj_data, dcr_parameters, headers)
     if not tag_search:
@@ -827,9 +923,6 @@ def discover_genes(read, read_qual, vj_data, lc_data, dcr_parameters, headers):
     if 'v_matching_tags' not in tag_search.keys():
         return
 
-    print([x[2].split('*')[0] for x in tag_search['v_matching_tags']])
-    print(tag_search['v_call'])
-    #
     if (len(list(set([x[2].split('*')[0] for x in tag_search['v_matching_tags']]))) == 1 or
         'l_call' in tag_search) and 'c_call' in tag_search:
 
@@ -848,7 +941,13 @@ def discover_genes(read, read_qual, vj_data, lc_data, dcr_parameters, headers):
 
 
 def variant_position(start_index, ref_seq, var_seq):
-    # todo docstr
+    """
+    :param start_index: int index of a 'tag break' (in an otherwise contiguous stretch of hits)
+    :param ref_seq: str of the matching germline reference allele sequence
+    :param var_seq: str of the actual provided 'variant' sequence
+    :return: str describing the kind of polymorphism in a detected difference [for noncontiguous_tag_check()]
+    """
+
     if len(ref_seq) != len(var_seq):
         return '!'
     var_site = [x for x in range(len(ref_seq)) if ref_seq[x] != var_seq[x]]
@@ -912,6 +1011,12 @@ def noncontiguous_tag_check(sequence, tag_hits, win_len, gene, ref_dat):
 
 
 def find_full_feats(tcr_dict, ref_dat, parameters):
+    """
+    :param tcr_dict: dict of TCR details discovered for this read thus far
+    :param ref_dat: dict of germline TCR detail
+    :param parameters: dict of provided parameters for the run
+    :return:
+    """
     # Todo doctsr
     feat_check = find_tag_hits(tcr_dict['sequence'], ref_dat)
     if feat_check:
@@ -920,9 +1025,9 @@ def find_full_feats(tcr_dict, ref_dat, parameters):
         # I.e. presume that the same L was used if the V is unambiguously determined
         if 'l_call' in feat_check:
             if 'v_call' not in tcr_dict:
-                # TODO fix
-                print(tcr_dict)
-                sys.exit()
+                # TODO handle more gracefully?
+                raise IOError("Leader detected, but no V!")
+
             if ',' in feat_check['l_call'] and ',' not in tcr_dict['v_call']:
                 if tcr_dict['v_call'].split('|')[0] in [x.split('|')[0] for x in feat_check['l_call'].split(',')]:
                     feat_check['l_call'] = tcr_dict['v_call'].replace('|V', '|L')
@@ -960,10 +1065,6 @@ def find_full_feats(tcr_dict, ref_dat, parameters):
             else:
                 feat_check['orf_in_frame'] = 'F'
 
-        # Add these to the tcr dictionary
-        # for field in full_feat_headers:  # TODO remove?
-        #     if field in feat_check:
-        #         tcr_dict[field] = feat_check[field]
         for field in feat_check:
             tcr_dict[field] = feat_check[field]
 
@@ -971,6 +1072,13 @@ def find_full_feats(tcr_dict, ref_dat, parameters):
 
 
 def call_rearrangements(strand, trie_results, ref_data):
+    """
+    :param strand: dict of the different input strings for processing, as produced by populate_reads()
+    :param trie_results: list of TCR tag hits, as produced by find_tag_hits()
+    :param ref_data: dict of germline reference data for the specified species/locus
+    :return: dict containing diverse details pertaining to any TCR rearrangement as detected in the input reads
+    """
+
     if 'v_call' in trie_results and 'j_call' in trie_results:
 
         trie_results['rev_comp'] = strand['rev_comp']
@@ -995,7 +1103,9 @@ def call_rearrangements(strand, trie_results, ref_data):
 
                 if all(g in tag_genes_sep for g in call_bits):
 
+                    # TODO address the fact that only one gene's _jump value is stored (not all matches if ambiguous?)
                     trie_results[gene_type.lower() + '_jump'] = ref_data['genes'][call_bits[0]].index(match[0])
+                    trie_results[gene_type.lower() + '_jump_gene'] = call_bits[0]
 
                     # Need to add on the J tag length to make the inter-tag sequence include the J tag
                     if gene_type == 'J':
@@ -1027,10 +1137,10 @@ def call_rearrangements(strand, trie_results, ref_data):
 
 def find_tag_hits(sequence, ref_data):
     """
-    # TODO fix docstring
     Does the actual tag searching
-    :param sequence: DNA seq to search for tag hits (i.e. sequences matching tags corresponding to TCR genes)
-    :return: defaultdict containing fields corresponding to the most distal/most unique V/J tag hits
+    :param sequence: str, sequence to search for tag hits (i.e. sequences matching tags corresponding to TCR genes)
+    :param ref_data: dict covering the germline reference details for the specific loci/regions
+    :return: defaultdict containing fields corresponding to the most distal/most-unique V/J tag hits
     """
 
     # Search the read using the relevant Aho-Corasick trie, and pull out the genes those tags come from
@@ -1073,16 +1183,21 @@ def find_tag_hits(sequence, ref_data):
 
 
 def get_output_name(tcr_name, tcr_dict):
-    # TODO docstr
+    """
+    :param tcr_name: str of name for TCR, if provided
+    :param tcr_dict: dict of details for a given rearrangement
+    :return: str of name for TCR, either tidied up (if provided) or generated (if not)
+    """
+
     # Preferentially use provided names
-    if not tcr_name or tcr_name == 'autoDCRscripts-TCR':
+    if not tcr_name or tcr_name == 'autoDCR-TCR':
         for field in ['v_call', 'j_call', 'junction_aa']:
             if field not in tcr_dict:
                 tcr_dict[field] = ''
             if not tcr_dict[field]:
                 tcr_dict[field] = 'no_' + field
 
-        return '_'.join(['autoDCRscripts-TCR', eg_gene(tcr_dict['v_call']).replace('*', '-'),
+        return '_'.join(['autoDCR-TCR', eg_gene(tcr_dict['v_call']).replace('*', '-'),
                          eg_gene(tcr_dict['j_call']).replace('*', '-'),
                          tcr_dict['junction_aa']])
 
@@ -1160,13 +1275,17 @@ def check_features(feat_str, feat_type):
                       f"Only combinations of {'/'.join(feat_list)} allowed.")
 
 
-def fastafy(gene, seq_line):
+def fastafy(gene, seq_line, wrap=60):
     """
     :param gene: Gene symbol, extracted from the read id
     :param seq_line: Total protein primary sequence, extracted from input FASTA/generated by in silico splicing
+    :param wrap: int, detailing how many characters per FASTA read lines
     :return: An output-compatible FASTA entry ready for writing to file
     """
-    return ">" + gene + "\n" + textwrap.fill(seq_line, 60) + "\n"
+    if wrap == 0:
+        return ">" + gene + "\n" + seq_line + "\n"
+    else:
+        return ">" + gene + "\n" + textwrap.fill(seq_line, wrap) + "\n"
 
 
 def orientation_options():
@@ -1182,6 +1301,7 @@ def protein_mode_check(desired_mode):
     if desired_mode not in protein_modes:
         raise IOError(f"TCR protein sequences can only be analysed in the following modes: {', '.join(protein_modes)}.")
 
+
 def tidy_gene_list(str_gene_list, delimiter=',', resolution='allele'):
     """
     :param str_gene_list: str, detailing a list of genes or alleles split by a certain identifier
@@ -1195,6 +1315,59 @@ def tidy_gene_list(str_gene_list, delimiter=',', resolution='allele'):
     gene_list = list(set(gene_list))
     gene_list.sort()
     return delimiter.join(gene_list)
+
+
+def list_to_df(input_list, headers, rename):
+    """
+    Convert a list to a (long) dataframe. Note that first entry becomes the index if chosen
+    :param input_list: List of list entries (with each position in each list corresponding to a column)
+    :param headers: List of column headers. First column should be unique, becoming the rownames, if rename = True
+    :param rename: Option to rename row IDs by first colum
+    :return: sorted pandas dataframe
+    """
+    df = pd.DataFrame(input_list)
+    df = df.rename(index=str, columns=dict(zip(range(len(headers)), headers)))
+    df = df.sort_values(by=[headers[0]])
+    if rename is True:
+        df = df.set_index(headers[0], drop=True)
+    return df
+
+
+def add_tag_coverage(tcr_dict, ref_data):
+    """
+    :param tcr_dict: dict of determined values of detected TCR rearrangement
+    :param ref_data: dict of germline reference sequence data
+    :return: tcr_dict, updated with 'x_jump' fields, saying how from the ends of the V/J genes the outermost tags are
+    """
+
+    v_field = 'missed_nt_v'
+    j_field = 'missed_nt_j'
+
+    if 'v_jump' in tcr_dict:
+        tcr_dict[v_field] = tcr_dict['v_jump']
+    else:
+        tcr_dict[v_field] = ''
+
+    if 'j_jump' in tcr_dict:
+        tcr_dict[j_field] = len(ref_data['genes'][tcr_dict['j_jump_gene']]) - tcr_dict['j_jump']
+    else:
+        tcr_dict[j_field] = ''
+
+    return tcr_dict
+
+
+def basename(path):
+    """
+    :param path: str of path to a file
+    :return: str of the basename of that path (e.g. '/some/long/path/file.txt' becomes 'file')
+    """
+
+    file_name = path.split('/')[-1]
+    if '.' in file_name:
+        return file_name[:file_name.rfind('.')]
+    else:
+        raise IOError(f"No '.' detected in file name ({file_name}); ensure this is a valid file type.")
+
 
 
 codons = {'AAA': 'K', 'AAC': 'N', 'AAG': 'K', 'AAT': 'N',
@@ -1233,3 +1406,8 @@ full_feat_headers = ['orf_in_frame', 'orf_len', 'lc_in_frame', 'found_stop', 'fo
     # TODO add other fields? start/codon/ORF full/in_frame?
 
 required_ref_files = ['.tags', '.fasta']
+j_motif_headers = ['J gene', 'Residue', 'Confident?', 'Motif', 'Position']
+c_motif_headers = ['C gene', 'Exons', 'Start motif', 'Stop codon motif']
+genotype_default = '[input-file-name]_genotype.json'
+genotype_ref_placeholder = '[name-of-existing-reference]'  # TODO rm, unused now?
+tag_coverage_headers = ['missed_nt_v', 'missed_nt_j']

@@ -1,7 +1,7 @@
 Generating reference data
 =========================
 
-In order to work, ``autoDCR`` requires a few different reference files (which differ slightly depending on the mode being being run). These files are automatically generated using the ``autoDCR refs`` command, which in turn uses the `stitchr <https://jamieheather.github.io/stitchr/>`_\ -style output of `IMGTgeneDL <https://github.com/JamieHeather/IMGTgeneDL>`_, a tool used to automatically download and parse germline TCR allele data from `IMGT/GENE-DB <https://imgt.org/genedb/doc>`_.
+In order to work, ``autoDCR`` requires a few different reference files (which differ slightly depending on the mode being being run). These files are automatically generated using the ``autoDCR refs`` command, which in turn by default uses the `stitchr <https://jamieheather.github.io/stitchr/>`_\ -style output of `IMGTgeneDL <https://github.com/JamieHeather/IMGTgeneDL>`_, a tool used to automatically download and parse germline TCR allele data from `IMGT/GENE-DB <https://imgt.org/genedb/doc>`_.
 
 ``autoDCR`` data directory
 --------------------------
@@ -94,11 +94,34 @@ In order to extract the necessary information for these modes, users must first 
 
     # For human AB TCRs, first you must have run
     autoDCR refs
-    # Or, if including novel alleles
+    # (If including novel alleles, additionally also run)
     autoDCR refs -nv
 
     # Then to add the constant and leader files
     autoDCR refs -sd -r CL
+
+Generating non-IMGT references
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``autoDCR`` can be used to generate its required files for any species/locus for at least minimal operation, provided certain criteria are met:
+
+* You must provide a FASTA file containing at the very least the complete unrearranged V and J gene region sequences
+* This should be as complete as possible, both in terms of allelic population coverage, and in terms of complete sequences running up to their respective coding boundaries
+* It should also be ideally be formatted with full IMGT-style FASTA headers
+* Failing that, sequences can be provided with just simply IUIS-style allele names as the sole FASTA header (``TRAVX*YZ'')
+* All complete gene*allele identifiers must be unique in the input file
+* If ``full`` style ``autoDCR`` mode is required, this file must additionally contain complete leader and constant region sequences
+    * Fully spliced constant region sequences should be provided (e.g. ``EX1+EX2+EX3+EX4UTR`` or ``EX1+EX2+EX3+EX4`` sequences as per IMGT nomenclature)
+
+``autoDCR`` can then generate the suitable files with the ``refs`` subcommand, providing both a path to the provided FASTA file (via ``-src``) and a name to use to refer to this reference set (``-n``), optionally also specifying the species name for clarity:
+
+.. code:: bash
+
+    autodcr refs -src path_to_the.fasta -n reference-name -s SomeCoolspecies
+
+    # Which can then be used by calling the provided name in the species field of an autoDCR command, e.g.:
+
+    autodcr cli -s reference-name -m vjcdr3 $tcr
 
 TCR protein sequence referencing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -132,7 +155,7 @@ Things to note
 
 * If you use ``pip`` to uninstall ``autoDCR`` will likely result in the deletion of this folder, so if you are likely to need the contents of the directory (e.g. if you have used a particular configuration to analyse data for publication) it is suggested that you make a prior of this directory before uninstalling.
 
-* As all TRDV genes can be found recombined with TRAJ (even those genes not necessarily labelled as TRAVx/DVx, at least in humans), ``autoDCR`` automatically considers all TRDV genes when looking for alpha chain recombinations.
+* As `all TRDV genes can be found recombined with TRAJ (even those genes not necessarily labelled as TRAVx/DVx, at least in humans) <https://doi.org/10.1016/j.immuno.2025.100058>`_, ``autoDCR`` automatically considers all TRDV genes when looking for alpha chain recombinations.
 
 * When generating tags for a particular species for the first time, be sure to check the ``.log`` file produced in the relevant data directory,
     * Conserved C/FGXG motifs are detected using regexes manually produced by generating positional weight matrices of all four human TCR loci, which allows it to detect even non-canonical residues at the conserved positions, in allele sequences that may be incomplete.

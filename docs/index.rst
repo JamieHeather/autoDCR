@@ -32,3 +32,20 @@ This sacrifices the speed of ``Decombinator``, but allows for greater resolution
   * `V4 update paper DOI: 10.1093/bioinformatics/btaa758 <https://doi.org/10.1093/bioinformatics/btaa758>`_
 
 **Note** that ``autoDCR`` is in active development and should be considered highly experimental, and does not offer as full a suite of functions as does ``Decombinator`` (nor seek to). Most especially it currently lacks the UMI based error-correction functionality of ``Decombinator``. Instead it is intended to supply a flexible framework of adaptable TCR annotation-related functions that can be tweaked for dataset-specific applications, including a few which I don't feel are necessarily well catered to with existing tools.
+
+What's new in v0.3.1
+--------------------
+
+(2026-02-11)
+
+* Updated ``autodcr refs`` to allow provision of custom FASTA files for use as the germline reference basis
+
+What's new in v0.3.0
+--------------------
+
+(2025-06-30)
+
+* Switched to a package, through use of ``typer`` and ``poetry``
+* Added additional modes, including annotation of single sequences via the command line, and TCR protein sequences
+* Using ``stitchr`` function, can additionally output rearrangements to Genbank files, for easy visualisation/sharing
+* Dropped rudimentary allele discovery components for now

@@ -1,6 +1,6 @@
 [project]
 name = "autoDCR"
-version = "0.3.0"
+version = "0.3.1"
 description = "Automatic DCR: a modified version of Decombinator for uncommon specific TCR annotation-related tasks"
 authors = [
     {name = "Jamie Heather",email = "jheather@mgh.harvard.edu"}

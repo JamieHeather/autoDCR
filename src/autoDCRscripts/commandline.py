@@ -2,11 +2,27 @@ import collections as coll
 import os
 import sys
 from . import autoDCRfunctions as fxn
+from . import __version__
 
 
 def cli_annotate(tcr, dcr_mode, output_mode, tcr_name, species, loci, orientation, barcoding,
                  protein, genbank_mode, deletion_limit, cdr3_limit, data_dir):
-    # TODO docstring
+    """
+    :param tcr: str of TCR to annotate
+    :param dcr_mode: str detailing mode to run autoDCR in (vjcdr3 / full)
+    :param output_mode: str detailing desired output format (stdout / gb / json)
+    :param tcr_name: str of name for TCR
+    :param species: str of species (well, germline reference)  # TODO add distinction between species/intended germline
+    :param loci: str covering TCR loci to be covered, e.g. 'A', 'B', 'AB', 'GD' etc
+    :param orientation: str for orientation of reads to look for (see fxn.orientation_options)
+    :param barcoding: bool flag to enable separate handling of barcode sequences  # TODO not enabled yet, placeholder
+    :param protein: bool flag to enable annotation of amino acid sequences
+    :param genbank_mode: str detailing desired Genbank output mode if appropriate (read / inferred / tags)
+    :param deletion_limit: int of how many deletions into V/J autodcr will allow and still call a TCR
+    :param cdr3_limit: int of maximum allowable length of a translated CDR3 junction sequence
+    :param data_dir: str of path where the relevant data directory is (usually the auto installed autodcr folder)
+    :return: dict of the TCR annotation, if discovered (or nothing)
+    """
 
     dcr_mode, output_mode, genbank_mode = [x.upper() for x in [dcr_mode, output_mode, genbank_mode]]
 
@@ -67,8 +83,6 @@ def cli_annotate(tcr, dcr_mode, output_mode, tcr_name, species, loci, orientatio
                 else:
                     print('\torientation\treverse')
 
-            print(f"\tproductive\t{tcr_check['productive']}")
-
             for field in fields:  # TODO add in some reporting as to whether certain fields are present?
                 if tcr_check[field]:
                     print('\t' + field + '\t' + tcr_check[field])
@@ -81,15 +95,14 @@ def cli_annotate(tcr, dcr_mode, output_mode, tcr_name, species, loci, orientatio
         elif output_mode.upper() == 'JSON':
             fxn.save_json(name + '.json', tcr_check)
 
-
         elif output_mode.upper() == 'GB':
             # Using the GenBank output functions from stitchr v0.3.0
 
             if genbank_mode.upper() not in ['READ', 'INFERRED', 'TAGS']:
                 raise IOError("Unexpected GenBank mode option:", genbank_mode)
 
-            description = 'TCR annotated with autoDCRscripts'  # TODO add version/ref details etc, put in function
-            out_path = name   # TODO remove or add teaks?
+            description = 'TCR annotated with autoDCR ' + __version__  # TODO add version/ref details etc, put in function
+            out_path = name   # TODO remove or add tweaks?
 
             if genbank_mode.upper() in ['READ', 'TAGS']:
                 full_sequence = tcr_check['sequence']
@@ -125,7 +138,7 @@ def cli_annotate(tcr, dcr_mode, output_mode, tcr_name, species, loci, orientatio
             genbank_params = {'sequence_name': out_path, 'full_sequence': full_sequence,
                               'description': description, 'topology': 'linear', 'features': gb_feats,
                               'save_dir_path': './', 'species': species, 'numbering': False,
-                              'plot_multi': True, 'division': 'SYN', 'journal': 'autoDCRscripts'}
+                              'plot_multi': True, 'division': 'SYN', 'journal': 'autoDCR'}
 
             fxn.output_genbank(**genbank_params)
 

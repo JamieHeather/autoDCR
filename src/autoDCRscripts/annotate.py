@@ -5,19 +5,23 @@ from time import time
 from . import autoDCRfunctions as fxn
 
 def vjcdr3_annotate(mode, in_path, out_path, species, loci, orientation, protein, barcoding,
-                    deletion_limit, cdr3_limit, dont_translate, dont_gzip, data_dir):
+                    deletion_limit, cdr3_limit, tag_coverage, dont_translate, dont_gzip, data_dir):
     """
-    # TODO docstring
-    :param in_file:
-    :param out_path:
-    :param species:
-    :param loci:
-    :param orientation:
-    :param deletion_limit:
-    :param cdr3_limit:
-    :param dont_translate:
-    :param dont_gzip:
-    :return:
+    :param mode: str detailing mode for running, e.g. 'vjcdr3' (regular V/J/CDR3) or 'full' (include L+C regions)
+    :param in_path: str of path to input read file (FASTA or FASTQ)
+    :param out_path: str of path for output TSV file
+    :param species: str detailing species to be sorted, referencing the relevant germline  # TODO change, see main()
+    :param loci: str covering TCR loci to be covered, e.g. 'A', 'B', 'AB', 'GD' etc
+    :param orientation: str for orientation of reads to look for (see fxn.orientation_options)
+    :param protein: bool flag to enable annotation of amino acid sequences
+    :param barcoding: bool flag to enable separate handling of barcode sequences  # TODO not enabled yet, placeholder
+    :param deletion_limit: int of how many deletions into V/J autodcr will allow and still call a TCR
+    :param cdr3_limit: int of maximum allowable length of a translated CDR3 junction sequence
+    :param tag_coverage: bool flag, to enable outputting of additional outermost tag data
+    :param dont_translate: bool flag to skip CDR3 translation steps  # TODO not enabled yet, placeholder - rm?
+    :param dont_gzip: bool flag to skip gzipping output TSV file
+    :param data_dir: str of path where the relevant data directory is (usually the auto installed autodcr folder)
+    :return: nothing, just saves / outputs the relevant info
     """
 
     # Establish the necessary input data and parameters
@@ -40,6 +44,8 @@ def vjcdr3_annotate(mode, in_path, out_path, species, loci, orientation, protein
         extra_refdat = fxn.import_tcr_info(species, loci, 'CL', 'nt', data_dir)
         for field in fxn.full_feat_headers:
             headers.insert(4, field)
+    if tag_coverage:
+        headers += fxn.tag_coverage_headers
 
     dcr_parameters = {'mode': mode,
                       'orientation': orientation,
@@ -76,7 +82,7 @@ def vjcdr3_annotate(mode, in_path, out_path, species, loci, orientation, protein
             # Figure out the relevant parts of the read for decombining, then search
             read, read_qual, bc, bc_qual = fxn.sort_read_bits(seq, qual, '')  # TODO add barcoding
 
-            # TODO break it down into different functions
+            # TODO break it down into different functions?
                 # TODO 1) find tags 2) call rearrangements 3) translate
 
             tcr_check = fxn.dcr(read, read_qual, reference_data, dcr_parameters, headers)
@@ -91,15 +97,15 @@ def vjcdr3_annotate(mode, in_path, out_path, species, loci, orientation, protein
                 counts['rearrangements'] += 1
                 tcr_check['sequence_id'] = read_id
 
-
-
-
                 # # TODO full - l+c search
                 if mode == 'FULL':
                     tcr_check = fxn.find_full_feats(tcr_check, extra_refdat, dcr_parameters)
 
                 # Remove in-process gene region labeling
                 tcr_check = fxn.tidy_output(tcr_check, headers)
+
+                if tag_coverage:
+                    tcr_check = fxn.add_tag_coverage(tcr_check, reference_data)
 
                 line_out = '\t'.join([str(tcr_check[x]) for x in headers])
 

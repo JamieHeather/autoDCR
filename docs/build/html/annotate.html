@@ -107,9 +107,15 @@
 </section>
 <section id="things-to-note">
 <h2>Things to note<a class="headerlink" href="#things-to-note" title="Link to this heading"></a></h2>
-<ul class="simple">
+<ul>
 <li><p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> aims to be as precise in its reporting of TCRs as possible, therefore it will list the smallest list of alleles that could have contributed to a given recombination as possible, separated by columns.</p></li>
-<li><p>TCRs are deemed to be ‘non-productive’ if they contain stop codons, don’t have in-frame variable and constant domains, and/or lack certain conserved motifs. While these rearrangements might be deemed less interesting, they are useful for some applications, and so <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> will still try to determine their CDR3 junction. Ordinarily <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> determines correct frames and conserved motifs using both the V and J genes, but in cases where there are detected stop codons it will only do in reference to the conserved J region FGXG motif. If it finds one, it will then just look for the nearest upstream V region Cys residue. In these circumstances it will report two comma-separated full inferred translations in the <code class="docutils literal notranslate"><span class="pre">inferred_full_aa</span></code> column: one assuming the V gene is in-frame, the other assuming the J gene is.</p></li>
+<li><p>TCRs are deemed to be ‘non-productive’ if they contain stop codons, don’t have in-frame variable and constant domains, and/or lack certain conserved motifs. While these rearrangements might be deemed less interesting, they are useful for some applications, and so <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> will still try to determine their CDR3 junction. Ordinarily <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> determines correct frames and conserved motifs using both the V and J genes, but in cases where there are detected stop codons it will only do in reference to the conserved J region FGXG motif. If it finds one, it will then just look for the nearest upstream V region Cys residue. In these circumstances it will report two comma-separated full inferred translations in the <code class="docutils literal notranslate"><span class="pre">inferred_full_aa</span></code> column: one assuming the V gene is in-frame, the other assuming the J gene is.</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Note that you may observe CDR3s that look odd, as this approach tries to make as few assumptions about the explicit residues present at the termini of a CDR3 as possible. Not only can there be one of several residues in place of the Phe in the J gene motif, there’s at least one published example of a functional TCR not using Cys to start its CDR3 (<a class="reference external" href="https://www.rcsb.org/structure/3W0W">in the alpha chain of the T36-5 TCR as per PDB ID 3W0W</a>).</p></li>
+</ul>
+</div></blockquote>
+</li>
 <li><p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> reports FASTQ quality scores along with the original reads. When provided with a FASTA file instead it simply generates a length-matched dummy quality score, consisting of spaces.</p></li>
 </ul>
 </section>

@@ -79,7 +79,7 @@
              
   <section id="generating-reference-data">
 <h1>Generating reference data<a class="headerlink" href="#generating-reference-data" title="Link to this heading"></a></h1>
-<p>In order to work, <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> requires a few different reference files (which differ slightly depending on the mode being being run). These files are automatically generated using the <code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">refs</span></code> command, which in turn uses the <a class="reference external" href="https://jamieheather.github.io/stitchr/">stitchr</a>-style output of <a class="reference external" href="https://github.com/JamieHeather/IMGTgeneDL">IMGTgeneDL</a>, a tool used to automatically download and parse germline TCR allele data from <a class="reference external" href="https://imgt.org/genedb/doc">IMGT/GENE-DB</a>.</p>
+<p>In order to work, <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> requires a few different reference files (which differ slightly depending on the mode being being run). These files are automatically generated using the <code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">refs</span></code> command, which in turn by default uses the <a class="reference external" href="https://jamieheather.github.io/stitchr/">stitchr</a>-style output of <a class="reference external" href="https://github.com/JamieHeather/IMGTgeneDL">IMGTgeneDL</a>, a tool used to automatically download and parse germline TCR allele data from <a class="reference external" href="https://imgt.org/genedb/doc">IMGT/GENE-DB</a>.</p>
 <section id="autodcr-data-directory">
 <h2><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> data directory<a class="headerlink" href="#autodcr-data-directory" title="Link to this heading"></a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> generates its own data directory during installation, and will download and manage its content there itself. If everything is working as it should, end users shouldn’t need to manually interact with their data directory much, but if it is required the location of this database can be printed by running <code class="docutils literal notranslate"><span class="pre">autoDCR</span> <span class="pre">dd</span></code>.</p>
@@ -182,11 +182,37 @@ autoDCR<span class="w"> </span>refs<span class="w"> </span>-L<span class="w"> </
 <p>In order to extract the necessary information for these modes, users must first generate the corresponding reference information, achieved by running <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> refs with the appropriate <code class="docutils literal notranslate"><span class="pre">--regions</span> <span class="pre">/</span> <span class="pre">-r</span></code> flag with the <code class="docutils literal notranslate"><span class="pre">skip_download</span> <span class="pre">/</span> <span class="pre">-sd</span></code> flag, after running regular reference production (+/- novel alleles) for that species. E.g.:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># For human AB TCRs, first you must have run</span>
 autoDCR<span class="w"> </span>refs
-<span class="c1"># Or, if including novel alleles</span>
+<span class="c1"># (If including novel alleles, additionally also run)</span>
 autoDCR<span class="w"> </span>refs<span class="w"> </span>-nv
 
 <span class="c1"># Then to add the constant and leader files</span>
 autoDCR<span class="w"> </span>refs<span class="w"> </span>-sd<span class="w"> </span>-r<span class="w"> </span>CL
+</pre></div>
+</div>
+</section>
+<section id="generating-non-imgt-references">
+<h3>Generating non-IMGT references<a class="headerlink" href="#generating-non-imgt-references" title="Link to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> can be used to generate its required files for any species/locus for at least minimal operation, provided certain criteria are met:</p>
+<ul class="simple">
+<li><p>You must provide a FASTA file containing at the very least the complete unrearranged V and J gene region sequences</p></li>
+<li><p>This should be as complete as possible, both in terms of allelic population coverage, and in terms of complete sequences running up to their respective coding boundaries</p></li>
+<li><p>It should also be ideally be formatted with full IMGT-style FASTA headers</p></li>
+<li><p>Failing that, sequences can be provided with just simply IUIS-style allele names as the sole FASTA header (<a href="#id1"><span class="problematic" id="id2">``</span></a>TRAVX*YZ’’)</p></li>
+<li><p>All complete gene*allele identifiers must be unique in the input file</p></li>
+<li><dl class="simple">
+<dt>If <code class="docutils literal notranslate"><span class="pre">full</span></code> style <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> mode is required, this file must additionally contain complete leader and constant region sequences</dt><dd><ul>
+<li><p>Fully spliced constant region sequences should be provided (e.g. <code class="docutils literal notranslate"><span class="pre">EX1+EX2+EX3+EX4UTR</span></code> or <code class="docutils literal notranslate"><span class="pre">EX1+EX2+EX3+EX4</span></code> sequences as per IMGT nomenclature)</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> can then generate the suitable files with the <code class="docutils literal notranslate"><span class="pre">refs</span></code> subcommand, providing both a path to the provided FASTA file (via <code class="docutils literal notranslate"><span class="pre">-src</span></code>) and a name to use to refer to this reference set (<code class="docutils literal notranslate"><span class="pre">-n</span></code>), optionally also specifying the species name for clarity:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>autodcr<span class="w"> </span>refs<span class="w"> </span>-src<span class="w"> </span>path_to_the.fasta<span class="w"> </span>-n<span class="w"> </span>reference-name<span class="w"> </span>-s<span class="w"> </span>SomeCoolspecies
+
+<span class="c1"># Which can then be used by calling the provided name in the species field of an autoDCR command, e.g.:</span>
+
+autodcr<span class="w"> </span>cli<span class="w"> </span>-s<span class="w"> </span>reference-name<span class="w"> </span>-m<span class="w"> </span>vjcdr3<span class="w"> </span><span class="nv">$tcr</span>
 </pre></div>
 </div>
 </section>
@@ -216,7 +242,7 @@ autodcr<span class="w"> </span>refs<span class="w"> </span>-aa<span class="w"> <
 <h2>Things to note<a class="headerlink" href="#things-to-note" title="Link to this heading"></a></h2>
 <ul class="simple">
 <li><p>If you use <code class="docutils literal notranslate"><span class="pre">pip</span></code> to uninstall <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> will likely result in the deletion of this folder, so if you are likely to need the contents of the directory (e.g. if you have used a particular configuration to analyse data for publication) it is suggested that you make a prior of this directory before uninstalling.</p></li>
-<li><p>As all TRDV genes can be found recombined with TRAJ (even those genes not necessarily labelled as TRAVx/DVx, at least in humans), <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> automatically considers all TRDV genes when looking for alpha chain recombinations.</p></li>
+<li><p>As <a class="reference external" href="https://doi.org/10.1016/j.immuno.2025.100058">all TRDV genes can be found recombined with TRAJ (even those genes not necessarily labelled as TRAVx/DVx, at least in humans)</a>, <code class="docutils literal notranslate"><span class="pre">autoDCR</span></code> automatically considers all TRDV genes when looking for alpha chain recombinations.</p></li>
 <li><dl class="simple">
 <dt>When generating tags for a particular species for the first time, be sure to check the <code class="docutils literal notranslate"><span class="pre">.log</span></code> file produced in the relevant data directory,</dt><dd><ul>
 <li><p>Conserved C/FGXG motifs are detected using regexes manually produced by generating positional weight matrices of all four human TCR loci, which allows it to detect even non-canonical residues at the conserved positions, in allele sequences that may be incomplete.</p></li>

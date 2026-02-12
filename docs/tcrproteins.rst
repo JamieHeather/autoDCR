@@ -45,7 +45,7 @@ Things to note
 
 * Currently the protein version of ``autoDCR`` only works in standard 'vjcdr3' mode, not 'full' (i.e. it cannot be used to detect leader or constant regions).
 
-
+* If you need to turn a TCR amino acid sequence into a nucleotide sequence, you can put the results of ``autoDCR`` into `stitchr <https://jamieheather.github.io/stitchr/>`_.
 
 
 

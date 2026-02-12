@@ -2,6 +2,7 @@
 
 import collections as coll
 import datetime
+import json
 import os
 import pandas as pd
 import re
@@ -10,26 +11,47 @@ import sys
 from IMGTgeneDL import IMGTgeneDL
 from time import strftime, localtime
 from . import autoDCRfunctions as fxn
+from . import __version__
 
 
-# TODO add name option, to allow multiple different references per species!
-def get_reference_data(species, slide_len, loci, regions, skip_download, novel, protein, data_dir):
+def get_reference_data(species, slide_len, loci, regions, skip_download, novel, protein, source, name, data_dir):
     """
-    # TODO docstring
-    :param species:
-    :param slide_len:
-    :param loci:
-    :param regions:
-    :param skip_download:
-    :param novel:
-    :param protein:
-    :param data_dir:
-    :return:
-    # TODO docstr
+    :param species: str, detailing species of reference in play
+    :param slide_len: int, length of sliding window used in tag generation
+    :param loci: str, some combination of 'ABGD' representing the TCR chains to include in the reference
+    :param regions: str, similarly detailing the TCR regions to include (basically 'VJ' or 'CL')
+    :param skip_download: bool, whether to skip re-downloading data from source
+    :param novel: bool, whether to download and add novel alleles
+    :param protein: bool, whether to generate a translated protein reference
+    :param source: str, path to FASTA file containing reference details to use instead of downloading
+    :param name: str, name of reference directory to use, over-riding default species naming
+    :param data_dir: str, path to data directory
+    :return: nothing, just downloads and processes the relevant data to the relevant place
     """
+
+    # TODO need to output the autodcr version into the 'data-production-date.tsv'
+    # Determine the parameters of the reference to be made
+    auto_sources = ['OGRDB', 'AIRRC', 'IMGT']
+    local = False
+    if source.upper() not in auto_sources:
+        local = True
+        skip_download = True
+        if not os.path.isfile(source):
+            raise FileNotFoundError("Unable to locate provided local reference file:", source)
 
     species = species.upper()
-    species_dir = os.path.join(data_dir, species)
+    if name:
+        if '/' in name or '\\' in name:
+            raise IOError("Illegal character detected in provided reference name. "
+                          "Please use just alphanumeric characters. ")
+        for char in [' ', '_']:
+            name = name.replace(char, '-')
+        out_ref_dir = os.path.join(data_dir, name)
+    else:
+        out_ref_dir = os.path.join(data_dir, species)
+        if local:
+            raise IOError("A local source file has been provided without a reference name: please provide one. ")
+
     loci = fxn.check_features(loci, 'loci')
     regions = fxn.check_features(regions, 'regions')
     full_regions = [fxn.regions[x] for x in regions]
@@ -42,21 +64,116 @@ def get_reference_data(species, slide_len, loci, regions, skip_download, novel, 
     overlap_denominator = 2
     if protein:
         # In order for the protein version to be run, the corresponding default nt VJ version must have been run
-        species_dir_fl = os.listdir(species_dir)
+        species_dir_fl = os.listdir(out_ref_dir)
         needed_prefix = fxn.format_ref_prefixes(loci, 'JV')
         for needed_fl in [needed_prefix + '.fasta', needed_prefix + '.translate', 'J-region-motifs.tsv']:
             if needed_fl not in species_dir_fl:
                 raise IOError(f"File required for protein references missing ({needed_fl}): "
-                              f"please run default nucleotide 'autoDCRscripts refs' for this species first.")
+                              f"please run default nucleotide 'autoDCR refs' for this species first.")
 
         skip_download = True
         overlap_denominator = 4
 
-    # If needed, download the raw data
-    if not skip_download or species not in os.listdir(data_dir):
+    species_dir_present = species in os.listdir(data_dir)
+
+    # If requested, parse a locally-provided file
+    if local:
+
+        if not os.path.isdir(out_ref_dir):
+            os.mkdir(out_ref_dir)
+
+        source_fasta = os.path.join(out_ref_dir, 'source-data.fasta')
+        print("Reading germline reference data in from", source_fasta)
+        shutil.copy(source, source_fasta)
+
+        source_reads = coll.defaultdict(list)
+        with (fxn.opener(source_fasta, 'r') as in_file,
+            open(os.path.join(out_ref_dir, 'TRA.fasta'), 'w') as tra_out_file,
+            open(os.path.join(out_ref_dir, 'TRB.fasta'), 'w') as trb_out_file,
+            open(os.path.join(out_ref_dir, 'TRG.fasta'), 'w') as trg_out_file,
+            open(os.path.join(out_ref_dir, 'TRD.fasta'), 'w') as trd_out_file):
+
+            counts = coll.defaultdict(None, {'A': coll.Counter(), 'B': coll.Counter(),
+                                             'G': coll.Counter(), 'D': coll.Counter()})
+
+            j_motif_data = []
+            c_motif_data = []
+            j_positions = {}
+            for readid, seq, qual in fxn.readfq(in_file):
+                # Deduce TCR alleles, assign unambiguous region labels, and sort to appropriate locus-specific files
+                imgt_format, header_bits = fxn.imgt_header_check(readid)
+                if imgt_format:
+                    allele_id = header_bits[1]
+                    out_loci, region = fxn.loci_details(allele_id)
+                    out_id = '|'.join(header_bits) + '|'
+
+                else:
+                    out_loci, region, allele_id = tcr_details(readid)
+                    out_id = fxn.imgt_header_builder(accession=name, allele_id=allele_id, functionality='?',
+                                                     length_nt=str(len(seq)) + ' nt', species=species)
+                    header_bits = out_id.split('|')
+
+                out_loci = ['tr' + x.lower() for x in out_loci]
+
+                # Skip Ds, as autodcr aint interested
+                if region == 'D':
+                    continue
+
+                tilde_check = ['~' + x for x in fxn.regions if len(x) > 1 and '~' + x in readid]
+                if len(tilde_check) == 1:
+                    out_id += tilde_check[0]
+                else:
+                    if region in ['J', 'C']:
+                        out_id += '~' + fxn.regions[region]
+                    elif region == 'V':
+
+                        # TODO make automatic leader detection smarter?
+                        if len(seq) < 100 or 'L-PART' in readid or 'LEADER' in readid:
+                            out_id += '~LEADER'
+                        else:
+                            out_id += '~VARIABLE'
+
+                for l in out_loci:
+                    vars()[l + '_out_file'].write(fxn.fastafy(out_id, seq))
+                    counts[l[-1].upper()][region] += 1
+
+                if region == 'J':
+                    # gene_placeholder = 'TR' + out_loci[0][-1].upper() + region
+                    motif_row = IMGTgeneDL.determine_j_motifs(header_bits, seq)
+                    motif_row[-1] = int(motif_row[-1])
+                    j_motif_data.append(motif_row)
+                    j_positions[allele_id] = motif_row[-1]
+
+                elif region == 'C':
+                    motif_row = IMGTgeneDL.determine_c_motifs(header_bits, seq)
+                    c_motif_data.append(motif_row)
+
+            j_motif_data = fxn.list_to_df(j_motif_data, fxn.j_motif_headers, True)
+            j_motif_data.to_csv(os.path.join(out_ref_dir, 'J-region-motifs.tsv'), sep='\t')
+            if c_motif_data:
+                c_motif_data = fxn.list_to_df(c_motif_data, fxn.c_motif_headers, True)
+                c_motif_data.to_csv(os.path.join(out_ref_dir, 'C-region-motifs.tsv'), sep='\t')
+
+        # Check each of the requested loci has at least V and J regions
+        for locus in loci:
+            for region in regions:
+                if region not in counts[locus]:
+                    raise IOError(f"Local germline source lacks one of the requested regions: "
+                                  f"no {locus} chain {region} regions.")
+
+        # Output the data production details
+        with open(os.path.join(out_ref_dir, 'data-production-date.tsv'), 'w') as out_file:
+            out_file.write("reference\t" + source + "\nrelease\t?\nlast_modified\t" +
+                           datetime.datetime.fromtimestamp(os.path.getmtime(source_fasta)).date().isoformat() +
+                           "\nscript_used\tautodcr refs\nlast_run\t" + fxn.today() + "\nversion_used\t" + __version__
+                           + '\n')
+
+    # Otherwise download the raw data as needed
+    elif not species_dir_present or (species_dir_present and not skip_download):
+
         print(f"Downloading TCR data for species '{species}' via IMGTgeneDL...")
         download_reference_data(species, data_dir)
-        j_motif_data, j_positions = get_j_motif_data(species_dir)
+        j_motif_data, j_positions = get_j_motif_data(out_ref_dir)
 
         # If requested, additionally download novel alleles (human only)
         if novel:
@@ -65,21 +182,23 @@ def get_reference_data(species, slide_len, loci, regions, skip_download, novel, 
             else:
                 print("Downloading additional novel alleles...")
                 # TODO make novel allele thresholds controllable from input arguments?
-                j_motif_data, j_positions = download_novel_alleles(2, 3, species_dir,
+                j_motif_data, j_positions = download_novel_alleles(2, 3, out_ref_dir,
                                                                    j_motif_data, j_positions)
-                j_motif_data.to_csv(os.path.join(species_dir, 'J-region-motifs.tsv'), sep = '\t', index=False)
+                j_motif_data.to_csv(os.path.join(out_ref_dir, 'J-region-motifs.tsv'), sep = '\t', index=False)
+
+
     else:
-        print("Skipping data download, proceeding to autoDCRscripts file generation...")
-        j_motif_data, j_positions = get_j_motif_data(species_dir)
-
-
+        print("Skipping data download, proceeding to autoDCR file generation...")
+        j_motif_data, j_positions = get_j_motif_data(out_ref_dir)
 
     # TODO make a flag to allow addition of 'full' regions, without over-writing! maybe to get all at once?
 
     # Then parse the FASTA files for the selected loci, generating the desired files
     # TODO re-add version?
-    log_str = 'Running autoDCRscripts refs on:\t ' + \
+    log_str = 'Running autoDCR refs on:\t' + \
               datetime.datetime.today().date().isoformat() + ' ' + datetime.datetime.today().time().isoformat() + r
+    log_str += 'autoDCR version:\t' + __version__ + r
+    log_str += 'Using reference source:\t' + source + r
     log_str += 'Sliding window length used:\t' + str(slide_len) + r + lb
     if slide_len != 20 and not protein:
         print("NB: non-default sliding window length used.")
@@ -92,19 +211,33 @@ def get_reference_data(species, slide_len, loci, regions, skip_download, novel, 
     functionalities = coll.defaultdict()
     partials = coll.defaultdict()
 
-    # TODO make possible for custom outpaths - particularly w.r.t. making donor-specific folders (to do discover/personalised annotate in one)
-    out_prefix = os.path.join(species_dir, fxn.format_ref_prefixes(loci, regions))
+    out_prefix = os.path.join(out_ref_dir, fxn.format_ref_prefixes(loci, regions))
     if protein:
         out_prefix += '_AA'
 
+    # Keep track of added alleles to prevent duplicates
+    processed_alleles = {'LEADER': coll.defaultdict(str),
+                         'VARIABLE': coll.defaultdict(str),
+                         'JOINING': coll.defaultdict(str),
+                         'CONSTANT': coll.defaultdict(str)}
+
     for locus in loci:
-        locus_file = os.path.join(species_dir, 'TR' + locus + '.fasta')
+        locus_file = os.path.join(out_ref_dir, 'TR' + locus + '.fasta')
 
         with (open(locus_file, 'r') as in_file):
             for readid, seq, qual in fxn.readfq(in_file):
                 region = readid.split('~')[1]
                 gene, func, partial = get_gene(readid)
                 locus = gene[2]
+
+                if gene not in processed_alleles[region]:
+                    processed_alleles[region][gene] = seq
+                else:
+                    if processed_alleles[region][gene] == seq:
+                        continue
+                    else:
+                        raise IOError(f"Two alleles with identical names ({gene}) but different sequences found!")
+
                 # Append the region type to the gene ID, to allow e.g. L/V disambiguation or non-std names
                 gene += '|' + fxn.regions[region]
 
@@ -112,7 +245,7 @@ def get_reference_data(species, slide_len, loci, regions, skip_download, novel, 
                         ((locus in loci) or (locus == 'D' and 'A' in loci)):
 
                     if protein:
-                        seq = translate_germlines(gene, region, seq, j_motif_data)  # TODO
+                        seq = translate_germlines(gene, region, seq, j_motif_data)
 
                     full_genes[gene] = seq.upper()
 
@@ -128,6 +261,11 @@ def get_reference_data(species, slide_len, loci, regions, skip_download, novel, 
                             tiles[gene].append(slide)
                             slides[slide].append(gene)
                             slides_count[slide] += 1
+
+                    # Add additional tags nested at the very end of each allele's sequence, to ensure coverage
+                    last_slide = window[-slide_len:]
+                    if last_slide != slide:
+                        slides[last_slide].append(gene)
 
     # Annotate all tags with all genes they appear in (regardless of window!)
     for tag in slides:
@@ -199,13 +337,69 @@ def get_reference_data(species, slide_len, loci, regions, skip_download, novel, 
         for g in full_genes:
             out_file.write(fastafy(g, full_genes[g]))
 
+    # Additionally compile a resource of alleles which may end up indistinguishable post-recombination
+    trim_value_v = 15  # TODO change to be settable via CLI?
+    trim_value_j = 20  # TODO change to be settable via CLI?
+
+    if regions == ['J', 'V']:
+        allele_alikes = coll.defaultdict(list)
+        for g1 in full_genes:
+            for g2 in full_genes:
+                if g1 != g2:
+                    r1 = g1[-2:]
+                    r2 = g2[-2:]
+                    if r1 != r2:
+                        continue
+                    if r1 == '|V' and r2 == '|V':
+                        trimmed1 = full_genes[g1][:-trim_value_v]
+                        trimmed2 = full_genes[g2][:-trim_value_v]
+                    elif r1 == '|J' and r2 == '|J':
+                        trimmed1 = full_genes[g1][trim_value_j:]
+                        trimmed2 = full_genes[g2][trim_value_j:]
+                    else:
+                        raise IOError(f"Unexpected values detected during final referencing checks "
+                                      f"(in genes {g1} and {g2}).")
+                    if trimmed1 in trimmed2 or trimmed2 in trimmed1:
+                        allele_alikes[g1].append(g2)
+
+        with open(out_prefix + '_potential_ambiguity.json', 'w') as out_file:
+            json.dump(allele_alikes, out_file)
+
+    print("Germline reference production completed")
+
+
+def tcr_details(fasta_header):
+    """
+    :param fasta_header: str of a TCR gene FASTA header
+    :return: list of loci used (lower case 3 digit, e.g. ['tra', 'trd']) and str of putative inferred gene ID
+    """
+    found = False
+    tr_match_indexes = [x.start() for x in re.finditer('TR[ABGD][VDJC]', fasta_header)]
+    tr_matches = [fasta_header[x:x+7] for x in tr_match_indexes]
+
+    if len(list(set(tr_matches))) == 1:
+        downstream = fasta_header[tr_match_indexes[0]:]
+        gene_attempt = downstream.split('|')[0].split(' ')[0]
+        if '*' in gene_attempt:
+            found = True
+            loci, region = fxn.loci_details(gene_attempt)
+
+    if found:
+        return loci, region, gene_attempt
+    else:
+        raise IOError(f"TCR gene/allele information not detected in FASTA header: {fasta_header}\n"
+                      f"Please ensure reference provides unambiguous and full 'TR[ABGD][VJC]*XX' format information.")
+
 
 def download_novel_alleles(study_threshold, donor_threshold, species_dir, j_motif_df, j_pos):
     """
-    # TODO docstr, point out it's from stitchrdl v0.3.0
     :param study_threshold: int of # of studies a given allele must be found in to be retained
     :param donor_threshold: int of # of donors a given allele must be found in to be retained, summed across all studies
-    This function grabs novel alleles from the repo where I collate them, and reads them into the additional-genes file
+    :param species_dir: str, path to reference directory
+    :param j_motif_df: df, containing the contents of the existing 'J-region-motifs.tsv' file in the reference
+    :param j_pos: dict, containing all J alleles keyed to the relative position of their conserved CDR3-ending residue
+    This function grabs novel alleles from the repo where I collate them, and reads them into the data directory
+    Function modified from stitchrdl v0.3.0
     """
     import requests
 
@@ -238,7 +432,6 @@ def download_novel_alleles(study_threshold, donor_threshold, species_dir, j_moti
     # Then read in and whittle down to those entries that meet select criteria
     novel = pd.read_csv(tsv_path, sep='\t')
     novel_out_fasta = os.path.join(species_dir, novel_file_name.replace('.tsv', '.fasta'))
-    additional_motifs = []
 
     with open(novel_out_fasta, 'w') as out_file:
         for row in novel.index:
@@ -318,11 +511,11 @@ def download_novel_alleles(study_threshold, donor_threshold, species_dir, j_moti
 
 def download_reference_data(dl_species, data_dir):
     """
-    :param dl_species:
-    :param data_dir:
-    :return:
+    :param dl_species: str, name of species to download
+    :param data_dir: str, path to autodcr data directory
+    :return: nothing, just uses IMGTgeneDL to download data of the appropriate species to the data directory
     """
-    # TODO docstring
+
     dl_species = dl_species.upper()
 
     # Use IMGTgeneDL's 'stitchr' mode to download the relevant data for this species
@@ -349,8 +542,6 @@ def download_reference_data(dl_species, data_dir):
         shutil.move(os.path.join(os.getcwd(), dl_species), os.path.join(data_dir, dl_species))
     else:
         raise IOError(f"Expected IMGTgeneDL directory for {dl_species} not detected after download!")
-
-    # TODO add novel allele DL functionality?
 
 
 def get_gene(string):
@@ -635,6 +826,10 @@ def translate_germlines(gene_id, region_type, nt_seq, j_motifs):  # TODO docstr
 
 
 def get_j_motif_data(species_dir_path):
+    """
+    :param species_dir_path: str, path to reference-specific data directory
+    :return: df of
+    """
     # TODO docstr
     j_motif_df = pd.read_csv(os.path.join(species_dir_path, 'J-region-motifs.tsv'), sep='\t')
     j_pos = {}
@@ -642,7 +837,6 @@ def get_j_motif_data(species_dir_path):
         row_dat = j_motif_df.iloc[row]
         j_pos[row_dat['J gene']] = row_dat['Position']
     return j_motif_df, j_pos
-
 
 
 region_key = {'L-': 'LEADER', 'V-': 'VARIABLE', 'J-': 'JOINING', 'EX': 'CONSTANT', 'CH': 'CONSTANT',
